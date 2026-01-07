@@ -1,84 +1,102 @@
-// 1. Setup Persistent ID
+<body class="dark-mode">
+    <div id="chat-container">
+        <div class="chat-toggle" onclick="document.getElementById('chat-container').classList.toggle('open')">💬</div>
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Say something...">
+    </div>
+
+    <div class="master-wrapper">
+        <div id="main-menu" class="screen visible">
+            <img src="logo_dark.png" class="logo">
+            <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
+            <button id="joinBtn" class="btn" onclick="connectToLobby()">JOIN LOBBY</button>
+            <button id="startBtn" class="btn" style="display:none;" disabled>WAITING FOR PLAYERS...</button>
+            <div id="status-text">Enter a name and join the server</div>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div id="turn-display">PREPARING...</div>
+            <div style="font-size: 80px;">💣</div>
+            <div id="prompt" class="prompt-box">?</div>
+            <input type="text" id="wordInput" autocomplete="off">
+        </div>
+    </div>
+
+<script>
     let myID = localStorage.getItem('bomber_uuid') || "ID_" + Math.floor(Math.random() * 999999);
     localStorage.setItem('bomber_uuid', myID);
 
-    const pubnub = new PubNub({
-        publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
-        subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-        userId: myID
-    });
-
-    let currentRoom = "room_1";
-    let activePlayers = {}; // Local list of players who have checked-in
+    let pubnub;
+    let currentRoom = "room_1"; // Everyone goes here first
+    let activePlayers = {};
     let gameActive = false;
     let countdownStarted = false;
 
-    // 2. BROADCAST: Tell everyone you are here every 2 seconds
-    setInterval(() => {
-        if (!gameActive) {
-            pubnub.publish({
-                channel: currentRoom,
-                message: { type: "HEARTBEAT", id: myID, name: document.getElementById('usernameInput').value || "Guest" }
-            });
-        }
-    }, 2000);
+    function connectToLobby() {
+        const name = document.getElementById('usernameInput').value.trim();
+        if (!name) return alert("Please enter a username!");
 
-    // 3. CLEANUP: If we haven't heard from someone in 5 seconds, remove them
-    setInterval(() => {
+        // Initialize PubNub ONLY when the button is pressed
+        pubnub = new PubNub({
+            publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
+            subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
+            userId: myID
+        });
+
+        pubnub.addListener({
+            message: (m) => {
+                if (m.message.type === "HEARTBEAT") {
+                    activePlayers[m.message.id] = { name: m.message.name, lastSeen: Date.now() };
+                }
+                if (m.message.type === "chat") {
+                    const msgDiv = document.getElementById('chat-messages');
+                    msgDiv.innerHTML += `<div><b>${m.message.user}:</b> ${m.message.text}</div>`;
+                    msgDiv.scrollTop = msgDiv.scrollHeight;
+                }
+                if (m.message.type === "START_SYNC") {
+                    triggerCountdown();
+                }
+            }
+        });
+
+        pubnub.subscribe({ channels: [currentRoom] });
+
+        // Switch UI buttons
+        document.getElementById('joinBtn').style.display = "none";
+        document.getElementById('startBtn').style.display = "block";
+        document.getElementById('status-text').innerText = "Searching for players...";
+
+        // Start Heartbeat
+        setInterval(sendHeartbeat, 2000);
+        setInterval(cleanupPlayers, 1000);
+    }
+
+    function sendHeartbeat() {
+        if (gameActive || !pubnub) return;
+        pubnub.publish({
+            channel: currentRoom,
+            message: { type: "HEARTBEAT", id: myID, name: document.getElementById('usernameInput').value }
+        });
+    }
+
+    function cleanupPlayers() {
         const now = Date.now();
         for (let id in activePlayers) {
-            if (now - activePlayers[id].lastSeen > 5000) {
-                delete activePlayers[id];
-            }
+            if (now - activePlayers[id].lastSeen > 5000) delete activePlayers[id];
         }
-        updateUI();
-    }, 1000);
-
-    function updateUI() {
+        
         const count = Object.keys(activePlayers).length;
-        const btn = document.getElementById('startBtn');
-        const status = document.getElementById('status-text');
+        document.getElementById('status-text').innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
 
-        status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
-
-        if (count >= 2 && !countdownStarted && !gameActive) {
-            startCountDown();
-        } else if (count < 2 && !countdownStarted) {
-            btn.innerText = "WAITING FOR PLAYERS...";
-            btn.disabled = true;
+        // Auto-start if 2+ players found
+        if (count >= 2 && !countdownStarted) {
+            countdownStarted = true;
+            pubnub.publish({ channel: currentRoom, message: { type: "START_SYNC" } });
         }
     }
 
-    pubnub.addListener({
-        message: (m) => {
-            const data = m.message;
-            
-            // Handle Heartbeats (Counting Players)
-            if (data.type === "HEARTBEAT") {
-                activePlayers[data.id] = { name: data.name, lastSeen: Date.now() };
-            }
-
-            // Handle Chat
-            if (data.type === "chat") {
-                const msgDiv = document.getElementById('chat-messages');
-                msgDiv.innerHTML += `<div><b>${data.user}:</b> ${data.text}</div>`;
-                msgDiv.scrollTop = msgDiv.scrollHeight;
-            }
-
-            // Handle Countdown Start
-            if (data.type === "START_SYNC_COUNT") {
-                triggerVisualCountdown();
-            }
-        }
-    });
-
-    function startCountDown() {
-        if (countdownStarted) return;
+    function triggerCountdown() {
         countdownStarted = true;
-        pubnub.publish({ channel: currentRoom, message: { type: "START_SYNC_COUNT" } });
-    }
-
-    function triggerVisualCountdown() {
         let time = 10;
         const btn = document.getElementById('startBtn');
         const timer = setInterval(() => {
@@ -86,16 +104,21 @@
             time--;
             if (time < 0) {
                 clearInterval(timer);
-                launch();
+                gameActive = true;
+                document.getElementById('main-menu').classList.remove('visible');
+                document.getElementById('game-screen').classList.add('visible');
             }
         }, 1000);
     }
 
-    function launch() {
-        gameActive = true;
-        document.getElementById('main-menu').classList.remove('visible');
-        document.getElementById('game-screen').classList.add('visible');
-    }
-
-    // Subscribe to start receiving messages
-    pubnub.subscribe({ channels: [currentRoom] });
+    // Chat listener
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && pubnub) {
+            pubnub.publish({
+                channel: currentRoom,
+                message: { type: "chat", user: document.getElementById('usernameInput').value, text: e.target.value }
+            });
+            e.target.value = "";
+        }
+    });
+</script>
