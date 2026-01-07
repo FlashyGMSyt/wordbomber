@@ -46,8 +46,8 @@
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" alt="Logo" class="logo">
             <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" disabled>CONNECTING...</button>
-            <div id="status-text">Lobby: ROOM_1 | Players: 0/6</div>
+            <button id="startBtn" class="btn" disabled>INITIALIZING...</button>
+            <div id="status-text">Connecting...</div>
         </div>
 
         <div id="game-screen" class="screen">
@@ -70,25 +70,32 @@
     const pubnub = new PubNub({
         publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
         subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-        userId: "ID_" + Math.floor(Math.random() * 9999)
+        userId: "ID_" + Math.floor(Math.random() * 999999),
+        heartbeatInterval: 10
     });
 
     let currentRoom = "room_1";
     let words = new Set(), syllables = [], gameActive = false, countdownStarted = false;
     let isMyTurn = false;
 
-    // --- HEARTBEAT: Update player count every 3 seconds ---
+    // --- REFRESH LOBBY STATS ---
     setInterval(() => {
         if(!gameActive) updateOccupancy();
-    }, 3000);
+    }, 2000);
 
     async function updateOccupancy() {
         try {
-            const res = await pubnub.hereNow({ channels: [currentRoom], includeUUIDs: true });
+            const res = await pubnub.hereNow({ 
+                channels: [currentRoom], 
+                includeUUIDs: true,
+                includeState: true 
+            });
+            
             const count = res.totalOccupancy || 0;
             const btn = document.getElementById('startBtn');
             const status = document.getElementById('status-text');
             
+            // This fixes the 0/6 issue by forcing the UI to re-read the server count
             status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
 
             if (count < 2 && !countdownStarted) {
@@ -98,22 +105,15 @@
                 countdownStarted = true;
                 pubnub.publish({ channel: currentRoom, message: { type: "START_COUNTDOWN" } });
             }
-        } catch (e) { console.error("Occupancy Error:", e); }
+        } catch (e) { console.error("Sync Error:", e); }
     }
 
     async function joinBestRoom() {
-        let roomNum = 1;
-        while(true) {
-            let roomName = "room_" + roomNum;
-            const res = await pubnub.hereNow({ channels: [roomName] });
-            if (res.totalOccupancy < 6) {
-                currentRoom = roomName;
-                pubnub.subscribe({ channels: [currentRoom], withPresence: true });
-                setTimeout(updateOccupancy, 1000);
-                break;
-            }
-            roomNum++;
-        }
+        pubnub.subscribe({ 
+            channels: [currentRoom], 
+            withPresence: true 
+        });
+        setTimeout(updateOccupancy, 1000);
     }
 
     pubnub.addListener({
@@ -126,13 +126,6 @@
             }
             if (m.message.type === "START_COUNTDOWN") startTenSecondTimer();
             if (m.message.type === "GAME_LAUNCH") launchGame();
-            if (m.message.type === "new_round") {
-                document.getElementById('prompt').innerText = m.message.syllable;
-                document.getElementById('turn-display').innerText = m.message.activePlayer + "'s TURN";
-                isMyTurn = (m.message.activePlayer === (document.getElementById('usernameInput').value || "Guest"));
-                document.getElementById('wordInput').disabled = !isMyTurn;
-                if(isMyTurn) document.getElementById('wordInput').focus();
-            }
         }
     });
 
@@ -151,14 +144,10 @@
         }, 1000);
     }
 
-    // --- FIX: Grab username instantly from box ---
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.value.trim() !== "") {
             let currentName = document.getElementById('usernameInput').value.trim() || "Guest";
-            pubnub.publish({ 
-                channel: currentRoom, 
-                message: { type: "chat", user: currentName, text: e.target.value } 
-            });
+            pubnub.publish({ channel: currentRoom, message: { type: "chat", user: currentName, text: e.target.value } });
             e.target.value = "";
         }
     });
@@ -178,21 +167,11 @@
                 clearInterval(interval);
                 document.getElementById('overlay').style.display = "none";
                 gameActive = true;
-                // If Host, start first turn
-                if(countdownStarted) {
-                    let hostName = document.getElementById('usernameInput').value || "Guest";
-                    pubnub.publish({
-                        channel: currentRoom,
-                        message: { type: "new_round", syllable: syllables[Math.floor(Math.random()*syllables.length)], activePlayer: hostName }
-                    });
-                    countdownStarted = false;
-                }
             }
             count--;
         }, 1000);
     }
 
-    // Assets Load
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
