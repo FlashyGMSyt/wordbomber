@@ -94,37 +94,78 @@
         }
     }
 
-    // --- MULTIPLAYER MESSAGES ---
-    pubnub.addListener({
-        message: function(m) {
-            if (m.message.type === "chat") {
-                const msgDiv = document.getElementById('chat-messages');
-                msgDiv.innerHTML += `<div class="msg"><b>${m.message.user}:</b> ${m.message.text}</div>`;
-                msgDiv.scrollTop = msgDiv.scrollHeight;
-            }
-            if (m.message.type === "new_round") {
-                document.getElementById('prompt').innerText = m.message.syllable;
-                document.getElementById('turn-display').innerText = m.message.activePlayer + "'s TURN";
-                isMyTurn = (m.message.activePlayer === myName);
-                document.getElementById('wordInput').disabled = !isMyTurn;
-                if(isMyTurn) document.getElementById('wordInput').focus();
-            }
-        }
-    });
+   // --- IMPROVED MULTIPLAYER LOGIC ---
+let countdownStarted = false;
 
-    function startMultiplayer() {
-        myName = document.getElementById('usernameInput').value.trim() || "Guest";
-        localStorage.setItem('wordBomberUser', myName);
-        document.getElementById('main-menu').classList.remove('visible');
-        document.getElementById('game-screen').classList.add('visible');
-        
-        // Tell the room we are ready
+// 1. Updated Listener to handle Presence and Auto-Start
+pubnub.addListener({
+    presence: function(p) {
+        // If someone joins and we have 2+ people, start the countdown
+        if (p.action === 'join' && !gameActive && !countdownStarted) {
+            checkAndStartCountdown();
+        }
+    },
+    message: function(m) {
+        if (m.message.type === "chat") {
+            const msgDiv = document.getElementById('chat-messages');
+            msgDiv.innerHTML += `<div class="msg"><b>${m.message.user}:</b> ${m.message.text}</div>`;
+            msgDiv.scrollTop = msgDiv.scrollHeight;
+        }
+        // When someone broadcasts the start signal
+        if (m.message.type === "START_TEN_SECOND_COUNT") {
+            triggerTenSecondTimer();
+        }
+        if (m.message.type === "new_round") {
+            document.getElementById('prompt').innerText = m.message.syllable;
+            document.getElementById('turn-display').innerText = m.message.activePlayer + "'s TURN";
+            isMyTurn = (m.message.activePlayer === myName);
+            document.getElementById('wordInput').disabled = !isMyTurn;
+            if(isMyTurn) document.getElementById('wordInput').focus();
+        }
+    }
+});
+
+// 2. Function to check if room is full enough to start
+async function checkAndStartCountdown() {
+    const res = await pubnub.hereNow({ channels: [currentRoom] });
+    if (res.totalOccupancy >= 2 && !countdownStarted) {
+        countdownStarted = true;
         pubnub.publish({
             channel: currentRoom,
-            message: { type: "chat", user: "SYSTEM", text: myName + " joined the room!" }
+            message: { type: "START_TEN_SECOND_COUNT" }
         });
     }
+}
 
+// 3. The 10-second visual timer
+function triggerTenSecondTimer() {
+    let timeLeft = 10;
+    const btn = document.getElementById('startBtn');
+    
+    const countInterval = setInterval(() => {
+        btn.disabled = true;
+        btn.innerText = `STARTING IN ${timeLeft}...`;
+        btn.style.background = "#ff3c3c";
+        btn.style.color = "white";
+        timeLeft--;
+
+        if (timeLeft < 0) {
+            clearInterval(countInterval);
+            launchGame(); // This actually enters the game
+        }
+    }, 1000);
+}
+
+// 4. Function to transition from Menu to Game
+function launchGame() {
+    myName = document.getElementById('usernameInput').value.trim() || "Guest";
+    localStorage.setItem('wordBomberUser', myName);
+    document.getElementById('main-menu').classList.remove('visible');
+    document.getElementById('game-screen').classList.add('visible');
+    
+    // Start the 3-2-1 visual for everyone
+    startSequence(); 
+}
     // Chat sending
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.value.trim() !== "") {
@@ -148,7 +189,7 @@
                     message: { 
                         type: "new_round", 
                         syllable: syllables[Math.floor(Math.random()*syllables.length)],
-                        activePlayer: "Next_Player" // This would normally pick the next name in the list
+                        activePlayer: "Next_Player" // This would normally pick the next name in the lisFt
                     }
                 });
             }
@@ -168,3 +209,4 @@
 </script>
 </body>
 </html>
+
