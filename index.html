@@ -14,7 +14,6 @@
         .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
         .btn { padding: 15px 50px; font-size: 24px; color: white; background: #333333; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; }
         .btn:hover { transform: scale(1.05); background: #000; }
-        #bomb-visual { font-size: 80px; margin-bottom: 10px; }
         .prompt-box { background: var(--box-bg); border: 4px solid var(--border-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
         #prompt { font-size: 80px; margin: 0; }
         input { width: 85%; padding: 20px; font-size: 35px; background: var(--bg-color); color: var(--text-color); border: 4px solid var(--border-color); border-radius: 10px; text-align: center; outline: none; }
@@ -23,14 +22,12 @@
         .bomb-pulse { animation: pulse 0.5s infinite; }
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; }
         #countdown-text { font-size: 150px; color: white; }
-        .score-pop { color: #2ecc71; font-size: 24px; font-weight: bold; position: absolute; animation: fadeUp 1s forwards; pointer-events: none; }
-        @keyframes fadeUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-50px); } }
     </style>
 </head>
 <body>
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
-            <img src="Screenshot_2026-01-06_213508-removebg-preview.png" id="game-logo" alt="Logo" class="logo">
+            <img src="Screenshot_2026-01-06_213508-removebg-preview.png" id="game-logo" alt="Word Bomber Logo" class="logo">
             <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
@@ -45,7 +42,7 @@
         </div>
 
         <div id="game-screen" class="screen">
-            <div id="bomb-visual">💣</div>
+            <div id="bomb-visual" style="font-size: 80px;">💣</div>
             <div class="prompt-box"><div id="prompt">...</div></div>
             <input type="text" id="wordInput" autocomplete="off" placeholder="TYPE...">
             <div id="timer">15.0</div>
@@ -62,7 +59,7 @@
     <div id="overlay"><div id="countdown-text">3</div></div>
 
 <script>
-    const sfxTick = new Audio('tick.mp3'); // Single-tick audio
+    const sfxTick = new Audio('tick.mp3'); // Sound sync
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false, lastWholeSecond = 15, promptHistory = [];
 
@@ -71,6 +68,7 @@
         if(localStorage.getItem('darkMode') === 'true') { document.getElementById('darkModeToggle').checked = true; applyDarkMode(); }
     };
 
+    // Updated to load your custom syllables.json
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
@@ -84,7 +82,8 @@
     function applyDarkMode() {
         const isDark = document.getElementById('darkModeToggle').checked;
         document.body.classList.toggle('dark-mode', isDark);
-        document.getElementById('game-logo').src = isDark ? 'image_9702ea.png' : 'Screenshot_2026-01-06_213508-removebg-preview.png';
+        // Fixed path for the bomb logo image you uploaded
+        document.getElementById('game-logo').src = 'Screenshot_2026-01-06_213508-removebg-preview.png';
         localStorage.setItem('darkMode', isDark);
     }
 
@@ -111,9 +110,8 @@
             timeLeft -= 0.1;
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
             let curSec = Math.floor(timeLeft);
-            // Single-tick sync
             if (curSec < lastWholeSecond && timeLeft > 0) {
-                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{});
+                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{}); // Sync with tick.mp3
                 lastWholeSecond = curSec;
             }
             if (timeLeft < 4) document.getElementById('bomb-visual').classList.add('bomb-pulse');
@@ -130,17 +128,16 @@
         currentPrompt = picked;
         document.getElementById('prompt').innerText = currentPrompt;
         document.getElementById('wordInput').value = "";
-        timeLeft = (score >= 50) ? 8.0 : 15.0; // Adjusted for length-based scoring
-        lastWholeSecond = Math.floor(timeLeft);
+        timeLeft = 15.0;
+        lastWholeSecond = 15;
     }
 
     document.getElementById('wordInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && gameActive) {
             const val = document.getElementById('wordInput').value.toLowerCase().trim();
             if (val.includes(currentPrompt.toLowerCase()) && words.has(val)) {
-                // ADD LENGTH TO SCORE
-                const points = val.length;
-                score += points; 
+                // Word-length scoring
+                score += val.length; 
                 document.getElementById('score').innerText = score;
                 newRound();
             } else { document.getElementById('wordInput').value = ""; }
