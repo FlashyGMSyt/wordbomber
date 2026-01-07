@@ -46,8 +46,8 @@
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" alt="Logo" class="logo">
             <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" disabled>INITIALIZING...</button>
-            <div id="status-text">Connecting...</div>
+            <button id="startBtn" class="btn" disabled>CONNECTING...</button>
+            <div id="status-text">Lobby: ROOM_1 | Players: 0/6</div>
         </div>
 
         <div id="game-screen" class="screen">
@@ -77,47 +77,30 @@
     let currentRoom = "room_1";
     let words = new Set(), syllables = [], gameActive = false, countdownStarted = false;
     let isMyTurn = false;
+    let playerCount = 0;
 
-    // --- REFRESH LOBBY STATS ---
-    setInterval(() => {
-        if(!gameActive) updateOccupancy();
-    }, 2000);
-
+    // --- FORCE UPDATE LOGIC ---
     async function updateOccupancy() {
         try {
-            const res = await pubnub.hereNow({ 
-                channels: [currentRoom], 
-                includeUUIDs: true,
-                includeState: true 
-            });
-            
-            const count = res.totalOccupancy || 0;
+            const res = await pubnub.hereNow({ channels: [currentRoom], includeUUIDs: true });
+            playerCount = res.totalOccupancy || 0;
             const btn = document.getElementById('startBtn');
             const status = document.getElementById('status-text');
             
-            // This fixes the 0/6 issue by forcing the UI to re-read the server count
-            status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
+            // Updates the red player counter
+            status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${playerCount}/6`;
 
-            if (count < 2 && !countdownStarted) {
-                btn.innerText = "WAITING FOR PLAYERS...";
-                btn.disabled = true;
-            } else if (count >= 2 && !countdownStarted) {
+            if (playerCount >= 2 && !countdownStarted) {
                 countdownStarted = true;
                 pubnub.publish({ channel: currentRoom, message: { type: "START_COUNTDOWN" } });
             }
         } catch (e) { console.error("Sync Error:", e); }
     }
 
-    async function joinBestRoom() {
-        pubnub.subscribe({ 
-            channels: [currentRoom], 
-            withPresence: true 
-        });
-        setTimeout(updateOccupancy, 1000);
-    }
+    // Refresh count every 2 seconds automatically
+    setInterval(() => { if(!gameActive) updateOccupancy(); }, 2000);
 
     pubnub.addListener({
-        presence: (p) => { updateOccupancy(); },
         message: (m) => {
             if (m.message.type === "chat") {
                 const msgDiv = document.getElementById('chat-messages');
@@ -128,6 +111,12 @@
             if (m.message.type === "GAME_LAUNCH") launchGame();
         }
     });
+
+    function joinBestRoom() {
+        pubnub.subscribe({ channels: [currentRoom], withPresence: true });
+        document.getElementById('startBtn').innerText = "WAITING FOR PLAYERS...";
+        setTimeout(updateOccupancy, 1000);
+    }
 
     function startTenSecondTimer() {
         let timeLeft = 10;
@@ -144,6 +133,7 @@
         }, 1000);
     }
 
+    // Fix for Username updating instantly
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.value.trim() !== "") {
             let currentName = document.getElementById('usernameInput').value.trim() || "Guest";
