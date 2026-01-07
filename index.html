@@ -6,9 +6,16 @@
     <title>Word Bomber</title>
     <style>
         :root { 
+            --bg-color: #ffffff; 
+            --text-color: #000000; 
+            --accent: #ff3c3c;
+            --box-bg: rgba(0, 0, 0, 0.05);
+            --check-color: rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark-mode {
             --bg-color: #121212; 
             --text-color: #ffffff; 
-            --accent: #ff3c3c;
             --box-bg: rgba(255, 255, 255, 0.05);
             --check-color: rgba(255, 255, 255, 0.03);
         }
@@ -21,9 +28,10 @@
             justify-content: center; align-items: center; 
             overflow: hidden;
             position: relative;
+            transition: background-color 0.3s;
         }
 
-        /* --- DIAGONAL INFINITE BACKGROUND --- */
+        /* --- SPEEDY DIAGONAL BACKGROUND --- */
         body::before {
             content: "";
             position: absolute;
@@ -34,27 +42,27 @@
                 linear-gradient(-45deg, var(--check-color) 25%, transparent 25%), 
                 linear-gradient(45deg, transparent 75%, var(--check-color) 75%), 
                 linear-gradient(-45deg, transparent 75%, var(--check-color) 75%);
-            background-size: 100px 100px;
-            animation: diagonalMove 60s linear infinite;
+            background-size: 80px 80px;
+            animation: diagonalMove 15s linear infinite; /* Faster speed */
             z-index: -1;
         }
 
         @keyframes diagonalMove {
             from { transform: translate(0, 0); }
-            to { transform: translate(100px, 100px); }
+            to { transform: translate(80px, 80px); }
         }
 
-        /* --- FLOATING UI ANIMATION --- */
+        /* --- FLOATING UI --- */
         @keyframes float {
             0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-12px); }
             100% { transform: translateY(0px); }
         }
 
         .master-wrapper { 
             display: flex; flex-direction: column; align-items: center; 
             width: 100%; max-width: 600px; 
-            animation: float 4s ease-in-out infinite; /* Soft wind bounce */
+            animation: float 3.5s ease-in-out infinite; 
         }
 
         .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
@@ -62,52 +70,44 @@
 
         .logo { 
             width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; 
-            filter: drop-shadow(0 0 10px var(--accent));
+            /* Red glow removed */
         }
 
         .btn { 
-            padding: 15px 50px; font-size: 24px; color: white; 
-            background: rgba(255, 255, 255, 0.1); 
-            border: 2px solid white; border-radius: 12px; 
+            padding: 15px 50px; font-size: 24px; color: var(--text-color); 
+            background: var(--box-bg); 
+            border: 2px solid var(--text-color); border-radius: 12px; 
             cursor: pointer; margin: 10px; width: 80%;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             backdrop-filter: blur(5px);
         }
 
         .btn:hover { 
             transform: scale(1.05); 
-            background: white; color: black;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            background: var(--text-color); color: var(--bg-color);
         }
 
         .prompt-box { 
-            background: var(--box-bg); border: 4px solid white; 
+            background: var(--box-bg); border: 4px solid var(--text-color); 
             padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; 
-            backdrop-filter: blur(10px);
         }
 
-        #prompt { font-size: 80px; margin: 0; text-shadow: 0 0 15px var(--accent); }
+        #prompt { font-size: 80px; margin: 0; }
 
         input { 
             width: 85%; padding: 20px; font-size: 35px; 
-            background: rgba(0,0,0,0.5); color: white;
-            border: 3px solid white; border-radius: 10px; text-align: center; 
-            outline: none; transition: border 0.3s;
+            background: var(--box-bg); color: var(--text-color);
+            border: 3px solid var(--text-color); border-radius: 10px; text-align: center; 
+            outline: none;
         }
-
-        input:focus { border-color: var(--accent); box-shadow: 0 0 15px var(--accent); }
-
-        #timer { font-size: 60px; margin: 10px 0; font-variant-numeric: tabular-nums; }
 
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; }
         #countdown-text { font-size: 150px; color: white; }
     </style>
 </head>
-<body>
-
-    <div class="master-wrapper">
+<body class="dark-mode"> <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
-            <img src="logo.png" id="game-logo" alt="Logo" class="logo">
+            <img src="logo_dark.png" id="game-logo" alt="Logo" class="logo">
             <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
@@ -116,7 +116,9 @@
         <div id="settings-screen" class="screen">
             <h1>SETTINGS</h1>
             <div class="prompt-box">
-                <p>Background music and more coming soon!</p>
+                <label style="font-size: 24px; cursor: pointer;">
+                    <input type="checkbox" id="darkModeToggle" checked onchange="applyDarkMode()"> DARK MODE
+                </label>
             </div>
             <button class="btn" onclick="showScreen('lobby')">BACK</button>
         </div>
@@ -130,8 +132,8 @@
         </div>
 
         <div id="game-over" class="screen">
-            <h1 style="font-size: 60px; color: var(--accent);">BOOM!</h1>
-            <div id="final-score-val" style="font-size: 100px;">0</div>
+            <h1 style="font-size: 60px;">BOOM!</h1>
+            <div id="final-score-val" style="font-size: 100px; color: var(--accent);">0</div>
             <button class="btn" onclick="startSequence()">RETRY</button>
             <button class="btn" onclick="location.reload()">LOBBY</button>
         </div>
@@ -147,7 +149,21 @@
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false, lastWholeSecond = 15, promptHistory = [];
 
-    // Load files from your GitHub repository
+    window.onload = () => {
+        document.getElementById('high-score-val').innerText = localStorage.getItem('wordBombHS') || 0;
+        if(localStorage.getItem('darkMode') === 'false') {
+            document.getElementById('darkModeToggle').checked = false;
+            applyDarkMode();
+        }
+    };
+
+    function applyDarkMode() {
+        const isDark = document.getElementById('darkModeToggle').checked;
+        document.body.classList.toggle('dark-mode', isDark);
+        document.getElementById('game-logo').src = isDark ? 'logo_dark.png' : 'logo.png'; //
+        localStorage.setItem('darkMode', isDark);
+    }
+
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
