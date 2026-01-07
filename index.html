@@ -2,174 +2,152 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Word Bomber Multiplayer</title>
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
     <style>
-        :root { --bg-color: #ffffff; --text-color: #000000; --accent: #ff3c3c; --box-bg: rgba(0, 0, 0, 0.05); --check-color: rgba(0, 0, 0, 0.05); }
-        body.dark-mode { --bg-color: #121212; --text-color: #ffffff; --box-bg: rgba(255, 255, 255, 0.05); --check-color: rgba(255, 255, 255, 0.03); }
-        body { font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; transition: background-color 0.3s; }
-        body::before { content: ""; position: absolute; top: -100%; left: -100%; width: 300%; height: 300%; background-image: linear-gradient(45deg, var(--check-color) 25%, transparent 25%), linear-gradient(-45deg, var(--check-color) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--check-color) 75%), linear-gradient(-45deg, transparent 75%, var(--check-color) 75%); background-size: 80px 80px; animation: diagonalMove 15s linear infinite; z-index: -1; }
-        @keyframes diagonalMove { from { transform: translate(0, 0); } to { transform: translate(80px, 80px); } }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-12px); } 100% { transform: translateY(0px); } }
-        .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; animation: float 3.5s ease-in-out infinite; }
+        :root { --bg-color: #ffffff; --text-color: #000000; --accent: #ff3c3c; --box-bg: rgba(0, 0, 0, 0.05); }
+        body.dark-mode { --bg-color: #121212; --text-color: #ffffff; --box-bg: rgba(255, 255, 255, 0.05); }
+        body { font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; z-index: 10; }
         .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
         .visible { display: flex !important; }
-        .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
-        .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; transition: all 0.2s ease; backdrop-filter: blur(5px); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
-        #prompt { font-size: 80px; margin: 0; }
+        .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .menu-input { width: 80%; padding: 10px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
-        input#wordInput { width: 85%; padding: 20px; font-size: 35px; background: var(--box-bg); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 10px; text-align: center; outline: none; }
-        #timer { font-size: 60px; margin: 10px 0; font-variant-numeric: tabular-nums; }
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        #countdown-text { font-size: 150px; color: white; }
-        #chat-container { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px); border-left: 2px solid white; transition: right 0.3s ease; display: flex; flex-direction: column; z-index: 500; }
+        #status-text { font-size: 14px; margin-top: 10px; color: var(--accent); }
+        /* Connection Indicator */
+        #conn-indicator { width: 10px; height: 10px; background: gray; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        #conn-indicator.online { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        /* Chat style */
+        #chat-container { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: rgba(0,0,0,0.9); border-left: 1px solid white; transition: 0.3s; z-index: 100; color: white; display: flex; flex-direction: column; }
         #chat-container.open { right: 0; }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; color: white; font-family: sans-serif; font-size: 14px; text-align: left; }
-        #chat-input { padding: 15px; background: rgba(255,255,255,0.1); border: none; color: white; outline: none; width: 100%; box-sizing: border-box; }
-        .chat-toggle { position: absolute; left: -50px; top: 20px; background: white; color: black; padding: 10px; cursor: pointer; border-radius: 5px 0 0 5px; font-size: 20px; }
-        .msg { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; word-wrap: break-word; }
-        #status-text { font-size: 16px; margin-top: 10px; color: var(--accent); font-weight: bold; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-family: sans-serif; font-size: 13px; text-align: left; }
     </style>
 </head>
 <body class="dark-mode">
 
     <div id="chat-container">
-        <div class="chat-toggle" onclick="document.getElementById('chat-container').classList.toggle('open')">💬</div>
+        <div style="padding: 10px; background: #222; cursor: pointer;" onclick="document.getElementById('chat-container').classList.toggle('open')">CLOSE CHAT</div>
         <div id="chat-messages"></div>
-        <input type="text" id="chat-input" placeholder="Say something...">
+        <input type="text" id="chat-input" placeholder="Type here..." style="padding: 10px; border: none; outline: none;">
     </div>
 
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
-            <img src="logo_dark.png" id="game-logo" alt="Logo" class="logo">
-            <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
+            <h1 style="font-size: 40px;">WORD BOMBER</h1>
+            <input type="text" id="usernameInput" class="menu-input" placeholder="USER NAME..." maxlength="12">
             <button id="startBtn" class="btn" disabled>CONNECTING...</button>
-            <div id="status-text">Lobby: ROOM_1 | Players: 0/6</div>
+            <div id="status-text"><span id="conn-indicator"></span><span id="occupancy-label">Waiting for server...</span></div>
+            <button class="btn" style="font-size: 14px; width: auto; margin-top: 20px;" onclick="document.getElementById('chat-container').classList.add('open')">OPEN CHAT 💬</button>
         </div>
 
         <div id="game-screen" class="screen">
-            <div id="turn-display" style="font-size: 20px; margin-bottom: 10px;">LOBBY STARTING...</div>
-            <div id="bomb-visual" style="font-size: 80px;">💣</div>
-            <div class="prompt-box"><div id="prompt">?</div></div>
-            <input type="text" id="wordInput" autocomplete="off" placeholder="WAITING...">
-            <div id="timer">15.0</div>
-        </div>
-
-        <div id="game-over" class="screen">
-            <h1 style="font-size: 60px;">BOOM!</h1>
-            <button class="btn" onclick="location.reload()">REJOIN LOBBY</button>
+            <h2 id="turn-display">GAME STARTED</h2>
+            <div style="font-size: 100px;">💣</div>
+            <div id="prompt" style="font-size: 60px; border: 4px solid white; padding: 20px; border-radius: 15px;">?</div>
+            <input type="text" id="wordInput" style="margin-top: 20px; font-size: 30px; text-align: center; width: 80%;">
         </div>
     </div>
 
-    <div id="overlay"><div id="countdown-text">3</div></div>
-
 <script>
+    // 1. Persistent ID (Fixes the "don't show I'm in the room" issue)
+    let myID = localStorage.getItem('bomber_uuid');
+    if (!myID) {
+        myID = "ID_" + Math.floor(Math.random() * 999999);
+        localStorage.setItem('bomber_uuid', myID);
+    }
+
     const pubnub = new PubNub({
         publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
         subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-        userId: "ID_" + Math.floor(Math.random() * 999999),
-        heartbeatInterval: 10
+        userId: myID,
+        restore: true, // Auto-reconnect
+        heartbeatInterval: 10,
+        keepAlive: true // Crucial for Safari/Mobile
     });
 
     let currentRoom = "room_1";
-    let words = new Set(), syllables = [], gameActive = false, countdownStarted = false;
-    let isMyTurn = false;
-    let playerCount = 0;
+    let gameActive = false;
+    let countdownStarted = false;
 
-    // --- FORCE UPDATE LOGIC ---
-    async function updateOccupancy() {
+    // 2. Optimized Presence Check
+    async function refreshLobby() {
         try {
-            const res = await pubnub.hereNow({ channels: [currentRoom], includeUUIDs: true });
-            playerCount = res.totalOccupancy || 0;
-            const btn = document.getElementById('startBtn');
-            const status = document.getElementById('status-text');
+            const res = await pubnub.hereNow({ channels: [currentRoom] });
+            const count = res.totalOccupancy || 0;
             
-            // Updates the red player counter
-            status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${playerCount}/6`;
+            document.getElementById('conn-indicator').classList.add('online');
+            document.getElementById('occupancy-label').innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
 
-            if (playerCount >= 2 && !countdownStarted) {
-                countdownStarted = true;
-                pubnub.publish({ channel: currentRoom, message: { type: "START_COUNTDOWN" } });
+            const btn = document.getElementById('startBtn');
+            if (count < 2) {
+                btn.innerText = "NEED 1 MORE PLAYER...";
+                btn.disabled = true;
+            } else if (count >= 2 && !countdownStarted) {
+                btn.innerText = "READY TO START!";
+                btn.disabled = false;
+                btn.onclick = () => {
+                    pubnub.publish({ channel: currentRoom, message: { type: "START_COUNTDOWN" } });
+                };
             }
-        } catch (e) { console.error("Sync Error:", e); }
+        } catch (e) {
+            console.error(e);
+            document.getElementById('conn-indicator').classList.remove('online');
+        }
     }
 
-    // Refresh count every 2 seconds automatically
-    setInterval(() => { if(!gameActive) updateOccupancy(); }, 2000);
+    // Interval to keep connection alive and update UI
+    setInterval(() => { if(!gameActive) refreshLobby(); }, 3000);
 
     pubnub.addListener({
+        status: (s) => {
+            if (s.category === "PNConnectedCategory") {
+                refreshLobby();
+            }
+        },
         message: (m) => {
             if (m.message.type === "chat") {
                 const msgDiv = document.getElementById('chat-messages');
-                msgDiv.innerHTML += `<div class="msg"><b>${m.message.user}:</b> ${m.message.text}</div>`;
+                msgDiv.innerHTML += `<div><b>${m.message.user}:</b> ${m.message.text}</div>`;
                 msgDiv.scrollTop = msgDiv.scrollHeight;
             }
-            if (m.message.type === "START_COUNTDOWN") startTenSecondTimer();
-            if (m.message.type === "GAME_LAUNCH") launchGame();
-        }
-    });
-
-    function joinBestRoom() {
-        pubnub.subscribe({ channels: [currentRoom], withPresence: true });
-        document.getElementById('startBtn').innerText = "WAITING FOR PLAYERS...";
-        setTimeout(updateOccupancy, 1000);
-    }
-
-    function startTenSecondTimer() {
-        let timeLeft = 10;
-        const btn = document.getElementById('startBtn');
-        const timerObj = setInterval(() => {
-            btn.innerText = `STARTING IN ${timeLeft}...`;
-            btn.style.background = "#ff3c3c";
-            btn.style.color = "white";
-            timeLeft--;
-            if (timeLeft < 0) {
-                clearInterval(timerObj);
-                pubnub.publish({ channel: currentRoom, message: { type: "GAME_LAUNCH" } });
+            if (m.message.type === "START_COUNTDOWN") {
+                countdownStarted = true;
+                let time = 5;
+                const btn = document.getElementById('startBtn');
+                const t = setInterval(() => {
+                    btn.innerText = `STARTING IN ${time}...`;
+                    time--;
+                    if(time < 0) {
+                        clearInterval(t);
+                        launchGame();
+                    }
+                }, 1000);
             }
-        }, 1000);
-    }
-
-    // Fix for Username updating instantly
-    document.getElementById('chat-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.target.value.trim() !== "") {
-            let currentName = document.getElementById('usernameInput').value.trim() || "Guest";
-            pubnub.publish({ channel: currentRoom, message: { type: "chat", user: currentName, text: e.target.value } });
-            e.target.value = "";
         }
     });
 
     function launchGame() {
+        gameActive = true;
         document.getElementById('main-menu').classList.remove('visible');
         document.getElementById('game-screen').classList.add('visible');
-        startSequence(); 
     }
 
-    function startSequence() {
-        document.getElementById('overlay').style.display = "flex";
-        let count = 3;
-        const interval = setInterval(() => {
-            document.getElementById('countdown-text').innerText = count > 0 ? count : "GO!";
-            if (count < 0) {
-                clearInterval(interval);
-                document.getElementById('overlay').style.display = "none";
-                gameActive = true;
-            }
-            count--;
-        }, 1000);
-    }
-
-    Promise.all([
-        fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
-        fetch('syllables.json').then(r => r.json())
-    ]).then(([dict, syl]) => {
-        dict.split(/\r?\n/).forEach(l => words.add(l.trim().toLowerCase()));
-        syllables = syl;
-        joinBestRoom();
+    // Chat Logic (Fixes Username dynamic update)
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.value.trim() !== "") {
+            let user = document.getElementById('usernameInput').value.trim() || "Guest";
+            pubnub.publish({ 
+                channel: currentRoom, 
+                message: { type: "chat", user: user, text: e.target.value } 
+            });
+            e.target.value = "";
+        }
     });
+
+    // Join
+    pubnub.subscribe({ channels: [currentRoom], withPresence: true });
 </script>
 </body>
 </html>
