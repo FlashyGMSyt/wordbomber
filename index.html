@@ -3,39 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Bomber</title>
+    <title>Word Bomber Multiplayer</title>
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
     <style>
-        :root { 
-            --bg-color: #ffffff; --text-color: #000000; --accent: #ff3c3c;
-            --box-bg: rgba(0, 0, 0, 0.05); --check-color: rgba(0, 0, 0, 0.05);
-        }
-        body.dark-mode {
-            --bg-color: #121212; --text-color: #ffffff; 
-            --box-bg: rgba(255, 255, 255, 0.05); --check-color: rgba(255, 255, 255, 0.03);
-        }
-
-        body { 
-            font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color);
-            margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; 
-            overflow: hidden; position: relative; transition: background-color 0.3s;
-        }
-
-        body::before {
-            content: ""; position: absolute; top: -100%; left: -100%; width: 300%; height: 300%;
-            background-image: 
-                linear-gradient(45deg, var(--check-color) 25%, transparent 25%), 
-                linear-gradient(-45deg, var(--check-color) 25%, transparent 25%), 
-                linear-gradient(45deg, transparent 75%, var(--check-color) 75%), 
-                linear-gradient(-45deg, transparent 75%, var(--check-color) 75%);
-            background-size: 80px 80px;
-            animation: diagonalMove 15s linear infinite; z-index: -1;
-        }
+        :root { --bg-color: #ffffff; --text-color: #000000; --accent: #ff3c3c; --box-bg: rgba(0, 0, 0, 0.05); --check-color: rgba(0, 0, 0, 0.05); }
+        body.dark-mode { --bg-color: #121212; --text-color: #ffffff; --box-bg: rgba(255, 255, 255, 0.05); --check-color: rgba(255, 255, 255, 0.03); }
+        body { font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; transition: background-color 0.3s; }
+        body::before { content: ""; position: absolute; top: -100%; left: -100%; width: 300%; height: 300%; background-image: linear-gradient(45deg, var(--check-color) 25%, transparent 25%), linear-gradient(-45deg, var(--check-color) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--check-color) 75%), linear-gradient(-45deg, transparent 75%, var(--check-color) 75%); background-size: 80px 80px; animation: diagonalMove 15s linear infinite; z-index: -1; }
         @keyframes diagonalMove { from { transform: translate(0, 0); } to { transform: translate(80px, 80px); } }
-
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-12px); } 100% { transform: translateY(0px); } }
         .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; animation: float 3.5s ease-in-out infinite; }
-
         .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
         .visible { display: flex !important; }
         .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
@@ -43,27 +20,18 @@
         .btn:hover { transform: scale(1.05); background: var(--text-color); color: var(--bg-color); }
         .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
         #prompt { font-size: 80px; margin: 0; }
-        
-        /* Menu Inputs */
         .menu-input { width: 80%; padding: 10px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
-        
         input#wordInput { width: 85%; padding: 20px; font-size: 35px; background: var(--box-bg); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 10px; text-align: center; outline: none; }
         #timer { font-size: 60px; margin: 10px 0; font-variant-numeric: tabular-nums; }
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
         #countdown-text { font-size: 150px; color: white; }
-
-        #chat-container {
-            position: fixed; right: -300px; top: 0; width: 300px; height: 100%;
-            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px);
-            border-left: 2px solid white; transition: right 0.3s ease;
-            display: flex; flex-direction: column; z-index: 500;
-        }
+        #chat-container { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px); border-left: 2px solid white; transition: right 0.3s ease; display: flex; flex-direction: column; z-index: 500; }
         #chat-container.open { right: 0; }
         #chat-messages { flex: 1; overflow-y: auto; padding: 15px; color: white; font-family: sans-serif; font-size: 14px; text-align: left; }
         #chat-input { padding: 15px; background: rgba(255,255,255,0.1); border: none; color: white; outline: none; width: 100%; box-sizing: border-box; }
         .chat-toggle { position: absolute; left: -50px; top: 20px; background: white; color: black; padding: 10px; cursor: pointer; border-radius: 5px 0 0 5px; font-size: 20px; }
         .msg { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; word-wrap: break-word; }
-        .msg b { color: #ff3c3c; }
+        #room-tag { font-size: 12px; opacity: 0.6; margin-top: 5px; }
     </style>
 </head>
 <body class="dark-mode">
@@ -77,174 +45,126 @@
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" alt="Logo" class="logo">
-            <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING...</button>
-            <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
-            <p>HIGH SCORE: <span id="high-score-val">0</span></p>
-        </div>
-
-        <div id="settings-screen" class="screen">
-            <h1>SETTINGS</h1>
-            <div class="prompt-box">
-                <label style="font-size: 24px; cursor: pointer;">
-                    <input type="checkbox" id="darkModeToggle" checked onchange="applyDarkMode()"> DARK MODE
-                </label>
-            </div>
-            <button class="btn" onclick="showScreen('lobby')">BACK</button>
+            <input type="text" id="usernameInput" class="menu-input" placeholder="USERNAME..." maxlength="12">
+            <button id="startBtn" class="btn" onclick="startMultiplayer()" disabled>LOADING ROOMS...</button>
+            <div id="room-tag">Searching for room...</div>
         </div>
 
         <div id="game-screen" class="screen">
+            <div id="turn-display">WAITING FOR OTHERS...</div>
             <div id="bomb-visual" style="font-size: 80px;">💣</div>
-            <div class="prompt-box"><div id="prompt">...</div></div>
-            <input type="text" id="wordInput" autocomplete="off" placeholder="TYPE...">
+            <div class="prompt-box"><div id="prompt">?</div></div>
+            <input type="text" id="wordInput" autocomplete="off" placeholder="YOUR TURN...">
             <div id="timer">15.0</div>
-            <div>SCORE: <span id="score">0</span></div>
         </div>
 
         <div id="game-over" class="screen">
-            <h1 style="font-size: 60px;">BOOM!</h1>
-            <div id="final-score-val" style="font-size: 100px; color: var(--accent);">0</div>
-            <button class="btn" onclick="startSequence()">RETRY</button>
-            <button class="btn" onclick="location.reload()">LOBBY</button>
+            <h1 style="font-size: 60px;">ELIMINATED!</h1>
+            <button class="btn" onclick="location.reload()">REJOIN LOBBY</button>
         </div>
     </div>
 
-    <div id="overlay"><div id="countdown-text">3</div></div>
-
 <script>
-    // --- USERNAME & PUBNUB ---
-    let username = localStorage.getItem('wordBomberUser') || "Guest";
-    document.getElementById('usernameInput').value = username === "Guest" ? "" : username;
-
     const pubnub = new PubNub({
         publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472", //
         subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2", //
-        userId: "ID_" + Math.floor(Math.random() * 1000)
+        userId: "ID_" + Math.floor(Math.random() * 9999)
     });
 
-    pubnub.subscribe({ channels: ['word-bomber-chat'] });
+    let currentRoom = "room_1";
+    let myName = localStorage.getItem('wordBomberUser') || "Guest";
+    let words = new Set(), syllables = [], gameActive = false;
+    let isMyTurn = false;
 
+    // --- ROOM FINDER LOGIC ---
+    async function joinBestRoom() {
+        let roomNum = 1;
+        while(true) {
+            let roomName = "room_" + roomNum;
+            const res = await pubnub.hereNow({ channels: [roomName] });
+            if (res.totalOccupancy < 6) {
+                currentRoom = roomName;
+                document.getElementById('room-tag').innerText = "Connected to: " + currentRoom.toUpperCase();
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').innerText = "JOIN GAME";
+                pubnub.subscribe({ channels: [currentRoom], withPresence: true });
+                break;
+            }
+            roomNum++;
+        }
+    }
+
+    // --- MULTIPLAYER MESSAGES ---
     pubnub.addListener({
-        message: function(event) {
-            const msgDiv = document.getElementById('chat-messages');
-            const newMsg = document.createElement('div');
-            newMsg.className = 'msg';
-            // Use the name sent in the message payload
-            newMsg.innerHTML = `<b>${event.message.user}:</b> ${event.message.text}`;
-            msgDiv.appendChild(newMsg);
-            msgDiv.scrollTop = msgDiv.scrollHeight;
+        message: function(m) {
+            if (m.message.type === "chat") {
+                const msgDiv = document.getElementById('chat-messages');
+                msgDiv.innerHTML += `<div class="msg"><b>${m.message.user}:</b> ${m.message.text}</div>`;
+                msgDiv.scrollTop = msgDiv.scrollHeight;
+            }
+            if (m.message.type === "new_round") {
+                document.getElementById('prompt').innerText = m.message.syllable;
+                document.getElementById('turn-display').innerText = m.message.activePlayer + "'s TURN";
+                isMyTurn = (m.message.activePlayer === myName);
+                document.getElementById('wordInput').disabled = !isMyTurn;
+                if(isMyTurn) document.getElementById('wordInput').focus();
+            }
         }
     });
 
+    function startMultiplayer() {
+        myName = document.getElementById('usernameInput').value.trim() || "Guest";
+        localStorage.setItem('wordBomberUser', myName);
+        document.getElementById('main-menu').classList.remove('visible');
+        document.getElementById('game-screen').classList.add('visible');
+        
+        // Tell the room we are ready
+        pubnub.publish({
+            channel: currentRoom,
+            message: { type: "chat", user: "SYSTEM", text: myName + " joined the room!" }
+        });
+    }
+
+    // Chat sending
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.value.trim() !== "") {
-            username = document.getElementById('usernameInput').value.trim() || "Guest";
             pubnub.publish({ 
-                channel: 'word-bomber-chat', 
-                message: { user: username, text: e.target.value } 
+                channel: currentRoom, 
+                message: { type: "chat", user: myName, text: e.target.value } 
             });
             e.target.value = "";
         }
     });
 
-    // --- GAME LOGIC ---
-    const sfxTick = new Audio('tick.mp3'); //
-    const sfxCorrect = new Audio('correct.mp3'); 
-    const sfxBoom = new Audio('boom.mp3');
-
-    const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
-    let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false, lastWholeSecond = 15;
-
-    window.onload = () => {
-        document.getElementById('high-score-val').innerText = localStorage.getItem('wordBombHS') || 0;
-        if(localStorage.getItem('darkMode') === 'false') {
-            document.getElementById('darkModeToggle').checked = false;
-            applyDarkMode();
+    // Word Logic
+    document.getElementById('wordInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && isMyTurn) {
+            const val = e.target.value.toLowerCase().trim();
+            const prompt = document.getElementById('prompt').innerText.toLowerCase();
+            if (val.includes(prompt) && words.has(val)) {
+                // SUCCESS: Pass the bomb
+                pubnub.publish({
+                    channel: currentRoom,
+                    message: { 
+                        type: "new_round", 
+                        syllable: syllables[Math.floor(Math.random()*syllables.length)],
+                        activePlayer: "Next_Player" // This would normally pick the next name in the list
+                    }
+                });
+            }
+            e.target.value = "";
         }
-    };
+    });
 
-    function applyDarkMode() {
-        const isDark = document.getElementById('darkModeToggle').checked;
-        document.body.classList.toggle('dark-mode', isDark);
-        document.getElementById('game-logo').src = isDark ? 'logo_dark.png' : 'logo.png';
-        localStorage.setItem('darkMode', isDark);
-    }
-
+    // Initial Load
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
-        fetch('syllables.json').then(r => r.json()) //
-    ]).then(([dictData, sylData]) => {
-        dictData.split(/\r?\n/).forEach(line => words.add(line.trim().toLowerCase()));
-        syllables = sylData;
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('startBtn').innerText = "START";
+        fetch('syllables.json').then(r => r.json())
+    ]).then(([dict, syl]) => {
+        dict.split(/\r?\n/).forEach(l => words.add(l.trim().toLowerCase()));
+        syllables = syl;
+        joinBestRoom();
     });
-
-    function showScreen(id) { Object.values(screens).forEach(s => s.classList.remove('visible')); screens[id].classList.add('visible'); }
-
-    function startSequence() {
-        username = document.getElementById('usernameInput').value.trim() || "Guest";
-        localStorage.setItem('wordBomberUser', username);
-        showScreen('game');
-        document.getElementById('overlay').style.display = "flex";
-        let count = 3;
-        document.getElementById('countdown-text').innerText = count;
-        const interval = setInterval(() => {
-            count--;
-            if (count > 0) document.getElementById('countdown-text').innerText = count;
-            else if (count === 0) document.getElementById('countdown-text').innerText = "GO!";
-            else { clearInterval(interval); document.getElementById('overlay').style.display = "none"; startGame(); }
-        }, 1000);
-    }
-
-    function startGame() {
-        gameActive = true; score = 0; document.getElementById('score').innerText = "0";
-        document.getElementById('wordInput').focus(); newRound();
-        const loop = setInterval(() => {
-            if (!gameActive) { clearInterval(loop); return; }
-            timeLeft -= 0.1;
-            document.getElementById('timer').innerText = timeLeft.toFixed(1);
-            let curSec = Math.floor(timeLeft);
-            if (curSec < lastWholeSecond && timeLeft > 0) {
-                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{});
-                lastWholeSecond = curSec;
-            }
-            if (timeLeft <= 0) { sfxBoom.play().catch(()=>{}); endGame(); clearInterval(loop); }
-        }, 100);
-    }
-
-    function newRound() {
-        currentPrompt = syllables[Math.floor(Math.random() * syllables.length)];
-        document.getElementById('prompt').innerText = currentPrompt;
-        document.getElementById('wordInput').value = "";
-        timeLeft = 15.0; lastWholeSecond = 15;
-    }
-
-    document.getElementById('wordInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && gameActive) {
-            const val = document.getElementById('wordInput').value.toLowerCase().trim();
-            if (val.includes(currentPrompt.toLowerCase()) && words.has(val)) {
-                sfxCorrect.play().catch(()=>{});
-                score += val.length; 
-                document.getElementById('score').innerText = score;
-                newRound();
-            } else { document.getElementById('wordInput').value = ""; }
-        }
-    });
-
-    function endGame() {
-        gameActive = false;
-        if (score > (localStorage.getItem('wordBombHS') || 0)) localStorage.setItem('wordBombHS', score);
-        document.getElementById('final-score-val').innerText = score;
-        
-        // Announce score to chat
-        pubnub.publish({ 
-            channel: 'word-bomber-chat', 
-            message: { user: "SYSTEM", text: `${username} just scored ${score} points!` } 
-        });
-
-        showScreen('over');
-    }
 </script>
 </body>
 </html>
