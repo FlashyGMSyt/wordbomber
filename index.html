@@ -17,7 +17,7 @@
         .visible { display: flex !important; }
         .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
         .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; transition: all 0.2s ease; backdrop-filter: blur(5px); }
-        .btn:hover { transform: scale(1.05); background: var(--text-color); color: var(--bg-color); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
         #prompt { font-size: 80px; margin: 0; }
         .menu-input { width: 80%; padding: 10px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
@@ -31,7 +31,7 @@
         #chat-input { padding: 15px; background: rgba(255,255,255,0.1); border: none; color: white; outline: none; width: 100%; box-sizing: border-box; }
         .chat-toggle { position: absolute; left: -50px; top: 20px; background: white; color: black; padding: 10px; cursor: pointer; border-radius: 5px 0 0 5px; font-size: 20px; }
         .msg { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; word-wrap: break-word; }
-        #room-tag { font-size: 12px; opacity: 0.6; margin-top: 5px; }
+        #status-text { font-size: 14px; margin-top: 10px; color: var(--accent); }
     </style>
 </head>
 <body class="dark-mode">
@@ -45,16 +45,16 @@
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" alt="Logo" class="logo">
-            <input type="text" id="usernameInput" class="menu-input" placeholder="USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" onclick="startMultiplayer()" disabled>LOADING ROOMS...</button>
-            <div id="room-tag">Searching for room...</div>
+            <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
+            <button id="startBtn" class="btn" disabled>WAITING FOR PLAYERS...</button>
+            <div id="status-text">Connecting to server...</div>
         </div>
 
         <div id="game-screen" class="screen">
-            <div id="turn-display">WAITING FOR OTHERS...</div>
+            <div id="turn-display" style="font-size: 20px; margin-bottom: 10px;">PREPARING...</div>
             <div id="bomb-visual" style="font-size: 80px;">💣</div>
             <div class="prompt-box"><div id="prompt">?</div></div>
-            <input type="text" id="wordInput" autocomplete="off" placeholder="YOUR TURN...">
+            <input type="text" id="wordInput" autocomplete="off" placeholder="WAITING...">
             <div id="timer">15.0</div>
         </div>
 
@@ -64,19 +64,42 @@
         </div>
     </div>
 
+    <div id="overlay"><div id="countdown-text">3</div></div>
+
 <script>
     const pubnub = new PubNub({
-        publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472", //
-        subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2", //
+        publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
+        subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
         userId: "ID_" + Math.floor(Math.random() * 9999)
     });
 
     let currentRoom = "room_1";
     let myName = localStorage.getItem('wordBomberUser') || "Guest";
-    let words = new Set(), syllables = [], gameActive = false;
+    let words = new Set(), syllables = [], gameActive = false, countdownStarted = false;
     let isMyTurn = false;
 
-    // --- ROOM FINDER LOGIC ---
+    // --- 1. ROOM FINDING & PLAYER COUNT ---
+    async function updateOccupancy() {
+        const res = await pubnub.hereNow({ channels: [currentRoom] });
+        const count = res.totalOccupancy;
+        const btn = document.getElementById('startBtn');
+        const status = document.getElementById('status-text');
+        
+        status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
+
+        if (count < 2 && !countdownStarted) {
+            btn.innerText = "WAITING FOR PLAYERS...";
+            btn.disabled = true;
+        } else if (count >= 2 && !countdownStarted) {
+            // Automatically trigger the countdown signal if we hit 2 players
+            countdownStarted = true;
+            pubnub.publish({
+                channel: currentRoom,
+                message: { type: "START_COUNTDOWN" }
+            });
+        }
+    }
+
     async function joinBestRoom() {
         let roomNum = 1;
         while(true) {
@@ -84,120 +107,113 @@
             const res = await pubnub.hereNow({ channels: [roomName] });
             if (res.totalOccupancy < 6) {
                 currentRoom = roomName;
-                document.getElementById('room-tag').innerText = "Connected to: " + currentRoom.toUpperCase();
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('startBtn').innerText = "JOIN GAME";
                 pubnub.subscribe({ channels: [currentRoom], withPresence: true });
+                setTimeout(updateOccupancy, 500);
                 break;
             }
             roomNum++;
         }
     }
 
-   // --- IMPROVED MULTIPLAYER LOGIC ---
-let countdownStarted = false;
+    // --- 2. MULTIPLAYER LISTENERS ---
+    pubnub.addListener({
+        presence: (p) => { updateOccupancy(); },
+        message: (m) => {
+            if (m.message.type === "chat") {
+                const msgDiv = document.getElementById('chat-messages');
+                msgDiv.innerHTML += `<div class="msg"><b>${m.message.user}:</b> ${m.message.text}</div>`;
+                msgDiv.scrollTop = msgDiv.scrollHeight;
+            }
+            if (m.message.type === "START_COUNTDOWN") {
+                startTenSecondTimer();
+            }
+            if (m.message.type === "GAME_LAUNCH") {
+                launchGame();
+            }
+            if (m.message.type === "new_round") {
+                document.getElementById('prompt').innerText = m.message.syllable;
+                document.getElementById('turn-display').innerText = m.message.activePlayer + "'s TURN";
+                isMyTurn = (m.message.activePlayer === myName);
+                document.getElementById('wordInput').disabled = !isMyTurn;
+                document.getElementById('wordInput').placeholder = isMyTurn ? "TYPE!" : "WAITING...";
+                if(isMyTurn) document.getElementById('wordInput').focus();
+            }
+        }
+    });
 
-// 1. Updated Listener to handle Presence and Auto-Start
-pubnub.addListener({
-    presence: function(p) {
-        // If someone joins and we have 2+ people, start the countdown
-        if (p.action === 'join' && !gameActive && !countdownStarted) {
-            checkAndStartCountdown();
-        }
-    },
-    message: function(m) {
-        if (m.message.type === "chat") {
-            const msgDiv = document.getElementById('chat-messages');
-            msgDiv.innerHTML += `<div class="msg"><b>${m.message.user}:</b> ${m.message.text}</div>`;
-            msgDiv.scrollTop = msgDiv.scrollHeight;
-        }
-        // When someone broadcasts the start signal
-        if (m.message.type === "START_TEN_SECOND_COUNT") {
-            triggerTenSecondTimer();
-        }
-        if (m.message.type === "new_round") {
-            document.getElementById('prompt').innerText = m.message.syllable;
-            document.getElementById('turn-display').innerText = m.message.activePlayer + "'s TURN";
-            isMyTurn = (m.message.activePlayer === myName);
-            document.getElementById('wordInput').disabled = !isMyTurn;
-            if(isMyTurn) document.getElementById('wordInput').focus();
-        }
-    }
-});
-
-// 2. Function to check if room is full enough to start
-async function checkAndStartCountdown() {
-    const res = await pubnub.hereNow({ channels: [currentRoom] });
-    if (res.totalOccupancy >= 2 && !countdownStarted) {
+    function startTenSecondTimer() {
         countdownStarted = true;
-        pubnub.publish({
-            channel: currentRoom,
-            message: { type: "START_TEN_SECOND_COUNT" }
-        });
+        let timeLeft = 10;
+        const btn = document.getElementById('startBtn');
+        const timerObj = setInterval(() => {
+            btn.innerText = `STARTING IN ${timeLeft}...`;
+            btn.style.background = "#ff3c3c";
+            btn.style.color = "white";
+            timeLeft--;
+            if (timeLeft < 0) {
+                clearInterval(timerObj);
+                // The first player (host) tells everyone to launch
+                pubnub.publish({ channel: currentRoom, message: { type: "GAME_LAUNCH" } });
+            }
+        }, 1000);
     }
-}
 
-// 3. The 10-second visual timer
-function triggerTenSecondTimer() {
-    let timeLeft = 10;
-    const btn = document.getElementById('startBtn');
-    
-    const countInterval = setInterval(() => {
-        btn.disabled = true;
-        btn.innerText = `STARTING IN ${timeLeft}...`;
-        btn.style.background = "#ff3c3c";
-        btn.style.color = "white";
-        timeLeft--;
+    function launchGame() {
+        myName = document.getElementById('usernameInput').value.trim() || "Guest";
+        localStorage.setItem('wordBomberUser', myName);
+        document.getElementById('main-menu').classList.remove('visible');
+        document.getElementById('game-screen').classList.add('visible');
+        startSequence(); 
+    }
 
-        if (timeLeft < 0) {
-            clearInterval(countInterval);
-            launchGame(); // This actually enters the game
-        }
-    }, 1000);
-}
+    // --- 3. GAME CORE ---
+    function startSequence() {
+        document.getElementById('overlay').style.display = "flex";
+        let count = 3;
+        const interval = setInterval(() => {
+            document.getElementById('countdown-text').innerText = count > 0 ? count : "GO!";
+            if (count < 0) {
+                clearInterval(interval);
+                document.getElementById('overlay').style.display = "none";
+                gameActive = true;
+                // Host starts the first turn
+                if (countdownStarted) {
+                    pubnub.publish({
+                        channel: currentRoom,
+                        message: { type: "new_round", syllable: syllables[Math.floor(Math.random()*syllables.length)], activePlayer: myName }
+                    });
+                    countdownStarted = false; // Reset for next game
+                }
+            }
+            count--;
+        }, 1000);
+    }
 
-// 4. Function to transition from Menu to Game
-function launchGame() {
-    myName = document.getElementById('usernameInput').value.trim() || "Guest";
-    localStorage.setItem('wordBomberUser', myName);
-    document.getElementById('main-menu').classList.remove('visible');
-    document.getElementById('game-screen').classList.add('visible');
-    
-    // Start the 3-2-1 visual for everyone
-    startSequence(); 
-}
-    // Chat sending
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.value.trim() !== "") {
-            pubnub.publish({ 
-                channel: currentRoom, 
-                message: { type: "chat", user: myName, text: e.target.value } 
-            });
+            pubnub.publish({ channel: currentRoom, message: { type: "chat", user: myName, text: e.target.value } });
             e.target.value = "";
         }
     });
 
-    // Word Logic
     document.getElementById('wordInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && isMyTurn) {
             const val = e.target.value.toLowerCase().trim();
-            const prompt = document.getElementById('prompt').innerText.toLowerCase();
-            if (val.includes(prompt) && words.has(val)) {
-                // SUCCESS: Pass the bomb
+            if (val.includes(document.getElementById('prompt').innerText.toLowerCase()) && words.has(val)) {
                 pubnub.publish({
                     channel: currentRoom,
                     message: { 
                         type: "new_round", 
                         syllable: syllables[Math.floor(Math.random()*syllables.length)],
-                        activePlayer: "Next_Player" // This would normally pick the next name in the lisFt
+                        activePlayer: "Opponent" // Simplification: in a full game, we'd cycle the player list
                     }
                 });
+                e.target.value = "";
             }
-            e.target.value = "";
         }
     });
 
-    // Initial Load
+    // Initial Assets Load
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
@@ -209,4 +225,3 @@ function launchGame() {
 </script>
 </body>
 </html>
-
