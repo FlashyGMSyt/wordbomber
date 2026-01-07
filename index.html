@@ -8,102 +8,93 @@
     <style>
         :root { --bg-color: #ffffff; --text-color: #000000; --accent: #ff3c3c; --box-bg: rgba(0, 0, 0, 0.05); }
         body.dark-mode { --bg-color: #121212; --text-color: #ffffff; --box-bg: rgba(255, 255, 255, 0.05); }
-        body { font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        body { font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; transition: background-color 0.3s; }
         .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; z-index: 10; }
         .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
         .visible { display: flex !important; }
-        .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
+        .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; transition: all 0.2s ease; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; color: gray; }
         .menu-input { width: 80%; padding: 10px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
-        #status-text { font-size: 14px; margin-top: 10px; color: var(--accent); }
-        /* Connection Indicator */
-        #conn-indicator { width: 10px; height: 10px; background: gray; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        #conn-indicator.online { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
-        /* Chat style */
-        #chat-container { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: rgba(0,0,0,0.9); border-left: 1px solid white; transition: 0.3s; z-index: 100; color: white; display: flex; flex-direction: column; }
+        #status-text { font-size: 16px; margin-top: 10px; color: var(--accent); font-weight: bold; }
+        #chat-container { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: rgba(0,0,0,0.95); border-left: 2px solid white; transition: 0.3s; z-index: 100; display: flex; flex-direction: column; }
         #chat-container.open { right: 0; }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-family: sans-serif; font-size: 13px; text-align: left; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; color: white; font-family: sans-serif; font-size: 14px; text-align: left; }
+        #chat-input { padding: 15px; background: #222; border: none; color: white; outline: none; }
+        .chat-toggle { position: absolute; left: -50px; top: 20px; background: white; color: black; padding: 10px; cursor: pointer; border-radius: 5px 0 0 5px; font-size: 20px; }
     </style>
 </head>
 <body class="dark-mode">
 
     <div id="chat-container">
-        <div style="padding: 10px; background: #222; cursor: pointer;" onclick="document.getElementById('chat-container').classList.toggle('open')">CLOSE CHAT</div>
+        <div class="chat-toggle" onclick="document.getElementById('chat-container').classList.toggle('open')">💬</div>
         <div id="chat-messages"></div>
-        <input type="text" id="chat-input" placeholder="Type here..." style="padding: 10px; border: none; outline: none;">
+        <input type="text" id="chat-input" placeholder="Say something...">
     </div>
 
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
-            <h1 style="font-size: 40px;">WORD BOMBER</h1>
-            <input type="text" id="usernameInput" class="menu-input" placeholder="USER NAME..." maxlength="12">
+            <img src="logo_dark.png" class="logo">
+            <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
             <button id="startBtn" class="btn" disabled>CONNECTING...</button>
-            <div id="status-text"><span id="conn-indicator"></span><span id="occupancy-label">Waiting for server...</span></div>
-            <button class="btn" style="font-size: 14px; width: auto; margin-top: 20px;" onclick="document.getElementById('chat-container').classList.add('open')">OPEN CHAT 💬</button>
+            <div id="status-text">Lobby: ROOM_1 | Players: 0/6</div>
         </div>
 
         <div id="game-screen" class="screen">
-            <h2 id="turn-display">GAME STARTED</h2>
-            <div style="font-size: 100px;">💣</div>
-            <div id="prompt" style="font-size: 60px; border: 4px solid white; padding: 20px; border-radius: 15px;">?</div>
-            <input type="text" id="wordInput" style="margin-top: 20px; font-size: 30px; text-align: center; width: 80%;">
+            <div id="turn-display" style="font-size: 20px; margin-bottom: 10px;">PREPARING...</div>
+            <div id="bomb-visual" style="font-size: 100px;">💣</div>
+            <div id="prompt" style="font-size: 70px; border: 4px solid white; padding: 20px; border-radius: 15px; margin: 20px 0;">?</div>
+            <input type="text" id="wordInput" autocomplete="off" placeholder="WAITING...">
         </div>
     </div>
 
 <script>
-    // 1. Persistent ID (Fixes the "don't show I'm in the room" issue)
-    let myID = localStorage.getItem('bomber_uuid');
-    if (!myID) {
-        myID = "ID_" + Math.floor(Math.random() * 999999);
-        localStorage.setItem('bomber_uuid', myID);
-    }
+    // Create a unique ID that stays the same for this browser
+    let myID = localStorage.getItem('bomber_uuid') || "ID_" + Math.floor(Math.random() * 999999);
+    localStorage.setItem('bomber_uuid', myID);
 
     const pubnub = new PubNub({
         publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
         subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
         userId: myID,
-        restore: true, // Auto-reconnect
         heartbeatInterval: 10,
-        keepAlive: true // Crucial for Safari/Mobile
+        keepAlive: true // This helps Safari and Edge stay connected
     });
 
     let currentRoom = "room_1";
     let gameActive = false;
     let countdownStarted = false;
 
-    // 2. Optimized Presence Check
-    async function refreshLobby() {
+    // --- MANUAL REFRESH (Fixes the 0/6 stuck issue) ---
+    async function updateLobby() {
         try {
-            const res = await pubnub.hereNow({ channels: [currentRoom] });
+            const res = await pubnub.hereNow({ channels: [currentRoom], includeUUIDs: true });
             const count = res.totalOccupancy || 0;
-            
-            document.getElementById('conn-indicator').classList.add('online');
-            document.getElementById('occupancy-label').innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
-
             const btn = document.getElementById('startBtn');
+            const status = document.getElementById('status-text');
+
+            status.innerText = `Lobby: ${currentRoom.toUpperCase()} | Players: ${count}/6`;
+
             if (count < 2) {
-                btn.innerText = "NEED 1 MORE PLAYER...";
+                btn.innerText = "WAITING FOR PLAYERS...";
                 btn.disabled = true;
-            } else if (count >= 2 && !countdownStarted) {
-                btn.innerText = "READY TO START!";
-                btn.disabled = false;
-                btn.onclick = () => {
-                    pubnub.publish({ channel: currentRoom, message: { type: "START_COUNTDOWN" } });
-                };
+                countdownStarted = false;
+            } else if (count >= 2 && !countdownStarted && !gameActive) {
+                // Auto-trigger countdown for everyone
+                countdownStarted = true;
+                pubnub.publish({ channel: currentRoom, message: { type: "START_COUNTDOWN" } });
             }
-        } catch (e) {
-            console.error(e);
-            document.getElementById('conn-indicator').classList.remove('online');
-        }
+        } catch (e) { console.error("Sync Error:", e); }
     }
 
-    // Interval to keep connection alive and update UI
-    setInterval(() => { if(!gameActive) refreshLobby(); }, 3000);
+    // Force a check every 3 seconds
+    setInterval(() => { if(!gameActive) updateLobby(); }, 3000);
 
     pubnub.addListener({
         status: (s) => {
             if (s.category === "PNConnectedCategory") {
-                refreshLobby();
+                document.getElementById('startBtn').innerText = "WAITING FOR PLAYERS...";
+                updateLobby();
             }
         },
         message: (m) => {
@@ -113,40 +104,39 @@
                 msgDiv.scrollTop = msgDiv.scrollHeight;
             }
             if (m.message.type === "START_COUNTDOWN") {
-                countdownStarted = true;
-                let time = 5;
-                const btn = document.getElementById('startBtn');
-                const t = setInterval(() => {
-                    btn.innerText = `STARTING IN ${time}...`;
-                    time--;
-                    if(time < 0) {
-                        clearInterval(t);
-                        launchGame();
-                    }
-                }, 1000);
+                startCount();
             }
         }
     });
 
-    function launchGame() {
+    function startCount() {
+        countdownStarted = true;
+        let time = 10;
+        const btn = document.getElementById('startBtn');
+        const timer = setInterval(() => {
+            btn.innerText = `STARTING IN ${time}...`;
+            time--;
+            if(time < 0) {
+                clearInterval(timer);
+                launch();
+            }
+        }, 1000);
+    }
+
+    function launch() {
         gameActive = true;
         document.getElementById('main-menu').classList.remove('visible');
         document.getElementById('game-screen').classList.add('visible');
     }
 
-    // Chat Logic (Fixes Username dynamic update)
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.value.trim() !== "") {
-            let user = document.getElementById('usernameInput').value.trim() || "Guest";
-            pubnub.publish({ 
-                channel: currentRoom, 
-                message: { type: "chat", user: user, text: e.target.value } 
-            });
+            let name = document.getElementById('usernameInput').value.trim() || "Guest";
+            pubnub.publish({ channel: currentRoom, message: { type: "chat", user: name, text: e.target.value } });
             e.target.value = "";
         }
     });
 
-    // Join
     pubnub.subscribe({ channels: [currentRoom], withPresence: true });
 </script>
 </body>
