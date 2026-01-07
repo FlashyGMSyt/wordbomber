@@ -27,7 +27,7 @@
 <body>
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
-            <img src="Screenshot_2026-01-06_213508-removebg-preview.png" id="game-logo" alt="Word Bomber Logo" class="logo">
+            <img src="logo.png" id="game-logo" alt="Word Bomber" class="logo">
             <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
@@ -59,7 +59,12 @@
     <div id="overlay"><div id="countdown-text">3</div></div>
 
 <script>
-    const sfxTick = new Audio('tick.mp3'); // Sound sync
+    // Audio files from your GitHub repository
+    const sfxTick = new Audio('tick.mp3'); 
+    const sfxCorrect = new Audio('correct.mp3'); 
+    const sfxWrong = new Audio('wrong.mp3');
+    const sfxBoom = new Audio('boom.mp3');
+
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false, lastWholeSecond = 15, promptHistory = [];
 
@@ -68,7 +73,7 @@
         if(localStorage.getItem('darkMode') === 'true') { document.getElementById('darkModeToggle').checked = true; applyDarkMode(); }
     };
 
-    // Updated to load your custom syllables.json
+    // Fetches dictionary and syllables.json from your GitHub
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
@@ -77,13 +82,13 @@
         syllables = sylData;
         document.getElementById('startBtn').disabled = false;
         document.getElementById('startBtn').innerText = "START";
-    });
+    }).catch(err => console.error("Loading error:", err));
 
     function applyDarkMode() {
         const isDark = document.getElementById('darkModeToggle').checked;
         document.body.classList.toggle('dark-mode', isDark);
-        // Fixed path for the bomb logo image you uploaded
-        document.getElementById('game-logo').src = 'Screenshot_2026-01-06_213508-removebg-preview.png';
+        // Matches your GitHub filenames
+        document.getElementById('game-logo').src = isDark ? 'logo_dark.png' : 'logo.png';
         localStorage.setItem('darkMode', isDark);
     }
 
@@ -111,12 +116,12 @@
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
             let curSec = Math.floor(timeLeft);
             if (curSec < lastWholeSecond && timeLeft > 0) {
-                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{}); // Sync with tick.mp3
+                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{}); 
                 lastWholeSecond = curSec;
             }
             if (timeLeft < 4) document.getElementById('bomb-visual').classList.add('bomb-pulse');
             else document.getElementById('bomb-visual').classList.remove('bomb-pulse');
-            if (timeLeft <= 0) { endGame(); clearInterval(loop); }
+            if (timeLeft <= 0) { sfxBoom.play().catch(()=>{}); endGame(); clearInterval(loop); }
         }, 100);
     }
 
@@ -136,11 +141,14 @@
         if (e.key === 'Enter' && gameActive) {
             const val = document.getElementById('wordInput').value.toLowerCase().trim();
             if (val.includes(currentPrompt.toLowerCase()) && words.has(val)) {
-                // Word-length scoring
-                score += val.length; 
+                sfxCorrect.play().catch(()=>{});
+                score += val.length; // Length-based scoring!
                 document.getElementById('score').innerText = score;
                 newRound();
-            } else { document.getElementById('wordInput').value = ""; }
+            } else { 
+                sfxWrong.play().catch(()=>{});
+                document.getElementById('wordInput').value = ""; 
+            }
         }
     });
 
