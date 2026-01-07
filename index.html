@@ -5,29 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word Bomber</title>
     <style>
-        :root { --bg-color: #ffffff; --text-color: #000000; --box-bg: #f9f9f9; --border-color: #000000; }
-        body.dark-mode { --bg-color: #1a1a1a; --text-color: #ffffff; --box-bg: #333333; --border-color: #ffffff; }
-        body { font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; transition: background-color 0.3s; }
-        .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
+        :root { 
+            --bg-color: #121212; 
+            --text-color: #ffffff; 
+            --accent: #ff3c3c;
+            --box-bg: rgba(255, 255, 255, 0.05);
+            --check-color: rgba(255, 255, 255, 0.03);
+        }
+
+        body { 
+            font-family: 'Arial Black', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            margin: 0; height: 100vh; display: flex; 
+            justify-content: center; align-items: center; 
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- DIAGONAL INFINITE BACKGROUND --- */
+        body::before {
+            content: "";
+            position: absolute;
+            top: -100%; left: -100%;
+            width: 300%; height: 300%;
+            background-image: 
+                linear-gradient(45deg, var(--check-color) 25%, transparent 25%), 
+                linear-gradient(-45deg, var(--check-color) 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, var(--check-color) 75%), 
+                linear-gradient(-45deg, transparent 75%, var(--check-color) 75%);
+            background-size: 100px 100px;
+            animation: diagonalMove 60s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes diagonalMove {
+            from { transform: translate(0, 0); }
+            to { transform: translate(100px, 100px); }
+        }
+
+        /* --- FLOATING UI ANIMATION --- */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .master-wrapper { 
+            display: flex; flex-direction: column; align-items: center; 
+            width: 100%; max-width: 600px; 
+            animation: float 4s ease-in-out infinite; /* Soft wind bounce */
+        }
+
         .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
         .visible { display: flex !important; }
-        .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
-        .btn { padding: 15px 50px; font-size: 24px; color: white; background: #333333; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; }
-        .btn:hover { transform: scale(1.05); background: #000; }
-        .prompt-box { background: var(--box-bg); border: 4px solid var(--border-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
-        #prompt { font-size: 80px; margin: 0; }
-        input { width: 85%; padding: 20px; font-size: 35px; background: var(--bg-color); color: var(--text-color); border: 4px solid var(--border-color); border-radius: 10px; text-align: center; outline: none; }
+
+        .logo { 
+            width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; 
+            filter: drop-shadow(0 0 10px var(--accent));
+        }
+
+        .btn { 
+            padding: 15px 50px; font-size: 24px; color: white; 
+            background: rgba(255, 255, 255, 0.1); 
+            border: 2px solid white; border-radius: 12px; 
+            cursor: pointer; margin: 10px; width: 80%;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn:hover { 
+            transform: scale(1.05); 
+            background: white; color: black;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+        }
+
+        .prompt-box { 
+            background: var(--box-bg); border: 4px solid white; 
+            padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; 
+            backdrop-filter: blur(10px);
+        }
+
+        #prompt { font-size: 80px; margin: 0; text-shadow: 0 0 15px var(--accent); }
+
+        input { 
+            width: 85%; padding: 20px; font-size: 35px; 
+            background: rgba(0,0,0,0.5); color: white;
+            border: 3px solid white; border-radius: 10px; text-align: center; 
+            outline: none; transition: border 0.3s;
+        }
+
+        input:focus { border-color: var(--accent); box-shadow: 0 0 15px var(--accent); }
+
         #timer { font-size: 60px; margin: 10px 0; font-variant-numeric: tabular-nums; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); filter: drop-shadow(0 0 15px red); } 100% { transform: scale(1); } }
-        .bomb-pulse { animation: pulse 0.5s infinite; }
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; }
+
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; }
         #countdown-text { font-size: 150px; color: white; }
     </style>
 </head>
 <body>
+
     <div class="master-wrapper">
         <div id="main-menu" class="screen visible">
-            <img src="logo.png" id="game-logo" alt="Word Bomber" class="logo">
+            <img src="logo.png" id="game-logo" alt="Logo" class="logo">
             <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
@@ -35,10 +115,10 @@
 
         <div id="settings-screen" class="screen">
             <h1>SETTINGS</h1>
-            <div style="background: var(--box-bg); padding: 40px; border-radius: 20px; border: 4px solid var(--border-color);">
-                <label style="font-size: 24px; cursor: pointer;"><input type="checkbox" id="darkModeToggle" onchange="applyDarkMode()" style="transform: scale(1.5); margin-right: 10px;"> DARK MODE</label>
+            <div class="prompt-box">
+                <p>Background music and more coming soon!</p>
             </div>
-            <button class="btn" onclick="showScreen('lobby')" style="margin-top: 30px;">BACK</button>
+            <button class="btn" onclick="showScreen('lobby')">BACK</button>
         </div>
 
         <div id="game-screen" class="screen">
@@ -50,30 +130,24 @@
         </div>
 
         <div id="game-over" class="screen">
-            <h1>BOOM!</h1>
-            <div id="final-score-val" style="font-size: 80px; color: red;">0</div>
+            <h1 style="font-size: 60px; color: var(--accent);">BOOM!</h1>
+            <div id="final-score-val" style="font-size: 100px;">0</div>
             <button class="btn" onclick="startSequence()">RETRY</button>
             <button class="btn" onclick="location.reload()">LOBBY</button>
         </div>
     </div>
+
     <div id="overlay"><div id="countdown-text">3</div></div>
 
 <script>
-    // Audio files from your GitHub repository
-    const sfxTick = new Audio('tick.mp3'); 
+    const sfxTick = new Audio('tick.mp3'); //
     const sfxCorrect = new Audio('correct.mp3'); 
-    const sfxWrong = new Audio('wrong.mp3');
     const sfxBoom = new Audio('boom.mp3');
 
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false, lastWholeSecond = 15, promptHistory = [];
 
-    window.onload = () => {
-        document.getElementById('high-score-val').innerText = localStorage.getItem('wordBombHS') || 0;
-        if(localStorage.getItem('darkMode') === 'true') { document.getElementById('darkModeToggle').checked = true; applyDarkMode(); }
-    };
-
-    // Fetches dictionary and syllables.json from your GitHub
+    // Load files from your GitHub repository
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
@@ -82,17 +156,12 @@
         syllables = sylData;
         document.getElementById('startBtn').disabled = false;
         document.getElementById('startBtn').innerText = "START";
-    }).catch(err => console.error("Loading error:", err));
+    });
 
-    function applyDarkMode() {
-        const isDark = document.getElementById('darkModeToggle').checked;
-        document.body.classList.toggle('dark-mode', isDark);
-        // Matches your GitHub filenames
-        document.getElementById('game-logo').src = isDark ? 'logo_dark.png' : 'logo.png';
-        localStorage.setItem('darkMode', isDark);
+    function showScreen(id) {
+        Object.values(screens).forEach(s => s.classList.remove('visible'));
+        screens[id].classList.add('visible');
     }
-
-    function showScreen(id) { Object.values(screens).forEach(s => s.classList.remove('visible')); screens[id].classList.add('visible'); }
 
     function startSequence() {
         showScreen('game');
@@ -116,25 +185,19 @@
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
             let curSec = Math.floor(timeLeft);
             if (curSec < lastWholeSecond && timeLeft > 0) {
-                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{}); 
+                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{}); //
                 lastWholeSecond = curSec;
             }
-            if (timeLeft < 4) document.getElementById('bomb-visual').classList.add('bomb-pulse');
-            else document.getElementById('bomb-visual').classList.remove('bomb-pulse');
             if (timeLeft <= 0) { sfxBoom.play().catch(()=>{}); endGame(); clearInterval(loop); }
         }, 100);
     }
 
     function newRound() {
-        let picked;
-        do { picked = syllables[Math.floor(Math.random() * syllables.length)]; } while (promptHistory.includes(picked));
-        promptHistory.push(picked);
-        if (promptHistory.length > 20) promptHistory.shift();
+        let picked = syllables[Math.floor(Math.random() * syllables.length)];
         currentPrompt = picked;
         document.getElementById('prompt').innerText = currentPrompt;
         document.getElementById('wordInput').value = "";
-        timeLeft = 15.0;
-        lastWholeSecond = 15;
+        timeLeft = 15.0; lastWholeSecond = 15;
     }
 
     document.getElementById('wordInput').addEventListener('keydown', (e) => {
@@ -142,13 +205,10 @@
             const val = document.getElementById('wordInput').value.toLowerCase().trim();
             if (val.includes(currentPrompt.toLowerCase()) && words.has(val)) {
                 sfxCorrect.play().catch(()=>{});
-                score += val.length; // Length-based scoring!
+                score += val.length; 
                 document.getElementById('score').innerText = score;
                 newRound();
-            } else { 
-                sfxWrong.play().catch(()=>{});
-                document.getElementById('wordInput').value = ""; 
-            }
+            } else { document.getElementById('wordInput').value = ""; }
         }
     });
 
