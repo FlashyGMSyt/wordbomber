@@ -23,6 +23,8 @@
         .bomb-pulse { animation: pulse 0.5s infinite; }
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; }
         #countdown-text { font-size: 150px; color: white; }
+        .score-pop { color: #2ecc71; font-size: 24px; font-weight: bold; position: absolute; animation: fadeUp 1s forwards; pointer-events: none; }
+        @keyframes fadeUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-50px); } }
     </style>
 </head>
 <body>
@@ -60,7 +62,7 @@
     <div id="overlay"><div id="countdown-text">3</div></div>
 
 <script>
-    const sfxTick = new Audio('tick.mp3'); //
+    const sfxTick = new Audio('tick.mp3'); // Single-tick audio
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false, lastWholeSecond = 15, promptHistory = [];
 
@@ -69,7 +71,6 @@
         if(localStorage.getItem('darkMode') === 'true') { document.getElementById('darkModeToggle').checked = true; applyDarkMode(); }
     };
 
-    // FETCH DICTIONARY AND SYLLABLES
     Promise.all([
         fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt').then(r => r.text()),
         fetch('syllables.json').then(r => r.json())
@@ -110,8 +111,9 @@
             timeLeft -= 0.1;
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
             let curSec = Math.floor(timeLeft);
+            // Single-tick sync
             if (curSec < lastWholeSecond && timeLeft > 0) {
-                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{}); //
+                sfxTick.currentTime = 0; sfxTick.play().catch(()=>{});
                 lastWholeSecond = curSec;
             }
             if (timeLeft < 4) document.getElementById('bomb-visual').classList.add('bomb-pulse');
@@ -128,7 +130,7 @@
         currentPrompt = picked;
         document.getElementById('prompt').innerText = currentPrompt;
         document.getElementById('wordInput').value = "";
-        timeLeft = (score >= 10) ? 8.0 : 15.0;
+        timeLeft = (score >= 50) ? 8.0 : 15.0; // Adjusted for length-based scoring
         lastWholeSecond = Math.floor(timeLeft);
     }
 
@@ -136,7 +138,11 @@
         if (e.key === 'Enter' && gameActive) {
             const val = document.getElementById('wordInput').value.toLowerCase().trim();
             if (val.includes(currentPrompt.toLowerCase()) && words.has(val)) {
-                score++; document.getElementById('score').innerText = score; newRound();
+                // ADD LENGTH TO SCORE
+                const points = val.length;
+                score += points; 
+                document.getElementById('score').innerText = score;
+                newRound();
             } else { document.getElementById('wordInput').value = ""; }
         }
     });
