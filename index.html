@@ -39,7 +39,9 @@
         .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
         .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; transition: all 0.2s ease; backdrop-filter: blur(5px); }
         .btn:hover:not(:disabled) { transform: scale(1.05); background: var(--text-color); color: var(--bg-color); }
-        .btn:disabled { opacity: 0.5; }
+
+        /* THE GATE OVERLAY - MUST CLICK TO START LOADING */
+        #safari-fix-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
 
         .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
         #prompt { font-size: 80px; margin: 0; }
@@ -47,9 +49,6 @@
         input#wordInput { width: 85%; padding: 20px; font-size: 35px; background: var(--box-bg); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 10px; text-align: center; outline: none; }
         #timer { font-size: 60px; margin: 10px 0; }
         #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; color: white; font-size: 100px; }
-
-        /* Safari Fix: Start Button Overlay */
-        #loading-gate { position: fixed; inset: 0; background: #121212; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
         #chat-container {
             position: fixed; right: -300px; top: 0; width: 300px; height: 100%;
@@ -65,9 +64,10 @@
 </head>
 <body class="dark-mode">
 
-    <div id="loading-gate">
-        <img src="logo_dark.png" style="width: 200px; margin-bottom: 20px;">
-        <button class="btn" onclick="startApp()" style="background:white; color:black;">CLICK TO ENTER</button>
+    <div id="safari-fix-overlay">
+        <h1 style="margin-bottom: 30px;">WORD BOMBER</h1>
+        <button class="btn" onclick="initEverything()" style="background:white; color:black;">TAP TO PLAY</button>
+        <p style="margin-top: 20px; font-size: 14px;">(Required for Safari & iPads)</p>
     </div>
 
     <div id="chat-container">
@@ -80,7 +80,7 @@
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" class="logo">
             <input type="text" id="usernameInput" class="menu-input" placeholder="ENTER USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING...</button>
+            <button id="startBtn" class="btn" onclick="startSequence()" disabled>PREPARING...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
         </div>
@@ -117,36 +117,37 @@
     const sfxCorrect = new Audio('correct.mp3'); 
     const sfxBoom = new Audio('boom.mp3');
 
-    // THIS FIXES THE LOADING ISSUE
-    function startApp() {
-        document.getElementById('loading-gate').style.display = 'none';
+    // THIS FUNCTION RUNS ONLY AFTER THE USER TAPS
+    function initEverything() {
+        document.getElementById('safari-fix-overlay').style.display = 'none';
         
-        // Connect PubNub AFTER user clicks
+        // Connect to PubNub now that we have user permission
         pubnub = new PubNub({
             publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
             subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-            userId: "ID_" + Math.floor(Math.random() * 99999)
+            userId: "Player_" + Math.floor(Math.random() * 9999)
         });
 
         pubnub.subscribe({ channels: ['word-bomber-chat'] });
         pubnub.addListener({
             message: (e) => {
                 const msgDiv = document.getElementById('chat-messages');
-                msgDiv.innerHTML += `<div class="msg"><b>${e.message.user}:</b> ${e.message.text}</div>`;
+                msgDiv.innerHTML += `<div><b>${e.message.user}:</b> ${e.message.text}</div>`;
                 msgDiv.scrollTop = msgDiv.scrollHeight;
             }
         });
 
-        loadGameData();
+        // Immediately start loading dictionary files
+        loadData();
     }
 
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
 
-    function loadGameData() {
+    function loadData() {
         document.getElementById('high-score-val').innerText = localStorage.getItem('wordBombHS') || 0;
         
-        // Apply Dark Mode from storage
+        // Sync Dark Mode UI
         if(localStorage.getItem('darkMode') === 'false') {
             document.getElementById('darkModeToggle').checked = false;
             applyDarkMode();
@@ -160,6 +161,8 @@
             syllables = syl;
             document.getElementById('startBtn').disabled = false;
             document.getElementById('startBtn').innerText = "START";
+        }).catch(() => {
+            document.getElementById('startBtn').innerText = "LOAD FAILED - RELOAD";
         });
     }
 
@@ -170,7 +173,7 @@
         localStorage.setItem('darkMode', isDark);
     }
 
-    function showScreen(id) { Object.values(screens).forEach(s => s.classList.remove('visible')); (id === 'lobby' ? screens.lobby : screens[id]).classList.add('visible'); }
+    function showScreen(id) { Object.values(screens).forEach(s => s.classList.remove('visible')); if(id==='lobby') screens.lobby.classList.add('visible'); else screens[id].classList.add('visible'); }
 
     function startSequence() {
         username = document.getElementById('usernameInput').value.trim() || "Guest";
