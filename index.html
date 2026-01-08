@@ -3,142 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Word Bomber Clone</title>
-    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
+    <title>Word Bomber | Offline Mode</title>
     <style>
-        :root { --bg: #1a1a1a; --panel: #2a2a2a; --accent: #ff4757; --text: #ffffff; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow: hidden; display: flex; height: 100vh; }
-        
-        /* Left Sidebar: Player List */
-        #sidebar { width: 250px; background: var(--panel); border-right: 1px solid #444; display: flex; flex-direction: column; padding: 20px; }
-        .player-card { background: rgba(255,255,255,0.05); padding: 10px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #555; }
-        .player-card.active { border-left-color: #2ed573; background: rgba(46, 213, 115, 0.1); }
-
-        /* Center: Game Area */
-        #game-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
-        .bomb { font-size: 120px; margin-bottom: 20px; transition: transform 0.1s; }
-        .shake { animation: shake 0.2s infinite; }
-        @keyframes shake { 0% { transform: rotate(0deg); } 50% { transform: rotate(5deg); } 100% { transform: rotate(-5deg); } }
-        
-        .prompt { font-size: 60px; font-weight: bold; background: var(--panel); padding: 20px 50px; border-radius: 15px; border: 4px solid #fff; }
-        #wordInput { margin-top: 30px; background: transparent; border: none; border-bottom: 3px solid #fff; color: #fff; font-size: 32px; text-align: center; outline: none; width: 300px; }
-
-        /* Right Sidebar: Chat */
-        #chat { width: 300px; background: var(--panel); border-left: 1px solid #444; display: flex; flex-direction: column; }
-        #messages { flex: 1; overflow-y: auto; padding: 15px; font-size: 14px; }
-        #chatInput { padding: 15px; background: #111; border: none; color: #fff; }
-
-        /* Overlay for Joining */
-        #join-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .hidden { display: none !important; }
+        :root { --bg: #121212; --accent: #ff4757; --text: #ffffff; }
+        body { font-family: 'Arial Black', sans-serif; background: var(--bg); color: var(--text); margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .container { text-align: center; width: 90%; max-width: 500px; }
+        .screen { display: none; }
+        .visible { display: block; }
+        .logo { width: 100%; max-width: 400px; margin-bottom: 20px; }
+        .bomb { font-size: 100px; margin: 20px; transition: transform 0.1s; }
+        .shake { animation: shake 0.1s infinite; }
+        @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
+        .prompt-box { background: rgba(255,255,255,0.05); border: 4px solid #fff; padding: 20px; border-radius: 15px; font-size: 50px; }
+        input { background: transparent; border: none; border-bottom: 3px solid #fff; color: #fff; font-size: 30px; text-align: center; outline: none; width: 80%; padding: 10px; margin-top: 20px; }
+        .btn { background: #fff; color: #000; border: none; padding: 15px 40px; font-size: 20px; border-radius: 10px; cursor: pointer; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="join-overlay">
-        <h1>BOMB PARTY CLONE</h1>
-        <input type="text" id="username" placeholder="Enter Nickname..." style="padding:15px; font-size: 20px; border-radius: 10px; border:none;">
-        <button onclick="joinGame()" style="margin-top:20px; padding:15px 40px; font-size: 20px; cursor:pointer; background:#ff4757; color:#white; border:none; border-radius:10px;">JOIN GAME</button>
-        <p id="room-link" style="color:#888; margin-top:10px;"></p>
-    </div>
+    <div class="container">
+        <div id="start-screen" class="screen visible">
+            <img src="logo_dark.png" class="logo">
+            <p id="best-score">Best Round: 0</p>
+            <button class="btn" onclick="startGame()">PLAY SOLO</button>
+        </div>
 
-    <div id="sidebar">
-        <h3>PLAYERS</h3>
-        <div id="player-list"></div>
-    </div>
-
-    <div id="game-area">
-        <div id="bomb-icon" class="bomb">💣</div>
-        <div class="prompt" id="current-syllable">---</div>
-        <input type="text" id="wordInput" placeholder="Wait for turn..." disabled>
-        <h2 id="timer-display">15.0</h2>
-        <p id="game-status" style="color: #ff4757; font-weight: bold;"></p>
-    </div>
-
-    <div id="chat">
-        <div id="messages"></div>
-        <input type="text" id="chatInput" placeholder="Press Enter to chat...">
+        <div id="game-screen" class="screen">
+            <div id="score-display">Words: 0</div>
+            <div id="bomb-icon" class="bomb">💣</div>
+            <div class="prompt-box" id="prompt">---</div>
+            <input type="text" id="wordInput" autocomplete="off" placeholder="...">
+            <div id="timer" style="font-size: 30px; margin-top: 10px; color: var(--accent);">10.0</div>
+        </div>
     </div>
 
 <script>
-    // --- SETUP ROOM & ID ---
-    let roomID = window.location.hash.substring(1) || "global-lobby";
-    document.getElementById('room-link').innerText = "Room: " + roomID;
-    let myID = localStorage.getItem('user_uuid') || "ID_" + Math.floor(Math.random() * 99999);
-    localStorage.setItem('user_uuid', myID);
+    // Link to your uploaded sounds
+    const sfxTick = new Audio('tick.mp3');
+    const sfxCorrect = new Audio('correct.mp3');
+    const sfxBoom = new Audio('boom.mp3');
 
-    let pubnub, myName;
-    let players = {};
-    let isMyTurn = false;
+    let dictionary = new Set();
+    let syllables = [];
+    let score = 0;
+    let timeLeft = 10;
+    let timerInterval;
 
-    // --- INITIALIZE GAME ---
-    function joinGame() {
-        myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("Enter a name!");
+    // Load your syllables.json
+    fetch('syllables.json').then(r => r.json()).then(data => syllables = data);
 
-        pubnub = new PubNub({
-            publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
-            subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-            userId: myID
-        });
+    // Load global dictionary
+    fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt')
+        .then(r => r.text())
+        .then(t => t.split(/\r?\n/).forEach(w => dictionary.add(w.trim().toLowerCase())));
 
-        pubnub.addListener({
-            message: (m) => {
-                const data = m.message;
-                if(data.type === "PING") updatePlayerList(data);
-                if(data.type === "CHAT") addChatMessage(data);
-                if(data.type === "NEW_TURN") startTurn(data);
+    function startGame() {
+        document.getElementById('start-screen').classList.remove('visible');
+        document.getElementById('game-screen').classList.add('visible');
+        nextRound();
+        startTimer();
+    }
+
+    function nextRound() {
+        const syl = syllables[Math.floor(Math.random() * syllables.length)];
+        document.getElementById('prompt').innerText = syl;
+        document.getElementById('wordInput').value = "";
+        document.getElementById('wordInput').focus();
+        timeLeft = Math.max(2, 10 - (score * 0.2)); // Gets harder
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft -= 0.1;
+            document.getElementById('timer').innerText = timeLeft.toFixed(1);
+            
+            // Play tick sound
+            if (timeLeft > 0 && timeLeft < 4 && Math.floor(timeLeft * 10) % 10 === 0) sfxTick.play();
+
+            if (timeLeft < 3) document.getElementById('bomb-icon').classList.add('shake');
+            else document.getElementById('bomb-icon').classList.remove('shake');
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                sfxBoom.play(); // Play boom sound
+                alert("BOOM! Final Score: " + score);
+                location.reload();
             }
-        });
-
-        pubnub.subscribe({ channels: [roomID] });
-        document.getElementById('join-overlay').classList.add('hidden');
-
-        // Start Heartbeat to show we are in the room
-        setInterval(() => {
-            pubnub.publish({
-                channel: roomID,
-                message: { type: "PING", id: myID, name: myName }
-            });
-        }, 2000);
+        }, 100);
     }
 
-    function updatePlayerList(data) {
-        players[data.id] = { name: data.name, lastSeen: Date.now() };
-        let html = "";
-        for (let id in players) {
-            if (Date.now() - players[id].lastSeen > 5000) delete players[id];
-            else html += `<div class="player-card ${id === currentTurnID ? 'active' : ''}">${players[id].name}</div>`;
-        }
-        document.getElementById('player-list').innerHTML = html;
-    }
-
-    // --- CHAT LOGIC ---
-    document.getElementById('chatInput').addEventListener('keydown', (e) => {
-        if(e.key === "Enter" && e.target.value.trim()) {
-            pubnub.publish({
-                channel: roomID,
-                message: { type: "CHAT", user: myName, text: e.target.value }
-            });
-            e.target.value = "";
+    document.getElementById('wordInput').addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase();
+        const syl = document.getElementById('prompt').innerText.toLowerCase();
+        if (dictionary.has(val) && val.includes(syl)) {
+            sfxCorrect.play(); // Play correct sound
+            score++;
+            document.getElementById('score-display').innerText = "Words: " + score;
+            nextRound();
         }
     });
-
-    function addChatMessage(data) {
-        const msgDiv = document.getElementById('messages');
-        msgDiv.innerHTML += `<div><b>${data.user}:</b> ${data.text}</div>`;
-        msgDiv.scrollTop = msgDiv.scrollHeight;
-    }
-
-    // --- GAME LOGIC PLACEHOLDERS ---
-    let currentTurnID = null;
-    function startTurn(data) {
-        currentTurnID = data.activeID;
-        document.getElementById('current-syllable').innerText = data.syllable;
-        isMyTurn = (myID === data.activeID);
-        document.getElementById('wordInput').disabled = !isMyTurn;
-        if(isMyTurn) document.getElementById('wordInput').focus();
-    }
 </script>
 </body>
 </html>
