@@ -4,21 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Word Bomber</title>
-    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js" onerror="console.warn('PubNub blocked by browser')"></script>
     <style>
         :root { --bg: #ffffff; --text: #000000; --accent: #ff3c3c; --box: rgba(0,0,0,0.05); --check: rgba(0,0,0,0.05); }
         body.dark-mode { --bg: #121212; --text: #ffffff; --box: rgba(255,255,255,0.1); --check: rgba(255,255,255,0.03); }
 
         html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background-color: var(--bg); color: var(--text); font-family: 'Arial Black', sans-serif; }
-        
         body { display: flex; justify-content: center; align-items: center; position: relative; }
-        body::before {
-            content: ""; position: absolute; inset: -50%; width: 200%; height: 200%;
-            background-image: linear-gradient(45deg, var(--check) 25%, transparent 25%), linear-gradient(-45deg, var(--check) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--check) 75%), linear-gradient(-45deg, transparent 75%, var(--check) 75%);
-            background-size: 80px 80px; animation: move 20s linear infinite; z-index: 1;
-        }
-        @keyframes move { from { transform: translate(0,0); } to { transform: translate(80px,80px); } }
-
+        
+        /* Centering Fix for Edge */
         .ui-layer { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 450px; text-align: center; }
         .screen { display: none; width: 100%; flex-direction: column; align-items: center; }
         .visible { display: flex !important; }
@@ -29,23 +23,20 @@
         .btn:disabled { opacity: 0.5; cursor: wait; }
 
         .input-box { width: 85%; padding: 15px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text); background: var(--box); color: var(--text); text-align: center; outline: none; }
-        #wordInput { font-size: 32px; height: 60px; }
         
         #chat-panel { position: fixed; right: -300px; top: 0; width: 300px; height: 100%; background: rgba(0,0,0,0.9); border-left: 2px solid white; transition: 0.3s; z-index: 100; display: flex; flex-direction: column; }
         #chat-panel.open { right: 0; }
         #chat-msgs { flex: 1; overflow-y: auto; padding: 15px; color: white; text-align: left; font-family: sans-serif; font-size: 14px; }
         #chat-in { padding: 15px; background: #222; border: none; color: white; width: 100%; box-sizing: border-box; }
-        .chat-btn { position: absolute; left: -50px; top: 20px; background: white; padding: 10px; border-radius: 5px 0 0 5px; cursor: pointer; }
-
-        #countdown { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; font-size: 100px; color: white; }
+        .chat-btn { position: absolute; left: -50px; top: 20px; background: white; padding: 10px; border-radius: 5px 0 0 5px; cursor: pointer; color: black; }
     </style>
 </head>
 <body class="dark-mode">
 
     <div id="chat-panel">
         <div class="chat-btn" onclick="document.getElementById('chat-panel').classList.toggle('open')">💬</div>
-        <div id="chat-msgs"></div>
-        <input type="text" id="chat-in" placeholder="Press Enter to Chat...">
+        <div id="chat-msgs">Chat may be disabled by your browser settings.</div>
+        <input type="text" id="chat-in" placeholder="Type here...">
     </div>
 
     <div class="ui-layer">
@@ -53,94 +44,88 @@
             <img src="logo_dark.png" id="game-logo" class="logo">
             <input type="text" id="userIn" class="input-box" placeholder="USERNAME..." maxlength="12">
             <button id="playBtn" class="btn" onclick="startSequence()" disabled>SYNCING...</button>
-            <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
+            <button id="settingsBtn" class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="hs-val">0</span></p>
         </div>
 
         <div id="settings" class="screen">
-            <h1 style="margin-top:0;">SETTINGS</h1>
-            <div class="btn" style="cursor:default;">
-                <label style="cursor:pointer;"><input type="checkbox" id="darkCheck" checked onchange="toggleDark()"> DARK MODE</label>
-            </div>
+            <h1>SETTINGS</h1>
+            <button class="btn" onclick="toggleDark()">TOGGLE DARK MODE</button>
             <button class="btn" onclick="showScreen('lobby')">BACK</button>
         </div>
 
         <div id="game" class="screen">
-            <div style="font-size: 50px;">💣</div>
-            <div style="font-size: 70px; border: 4px solid var(--text); padding: 10px 40px; border-radius: 15px; margin: 10px;" id="prompt">...</div>
-            <input type="text" id="wordInput" class="input-box" autocomplete="off" placeholder="TYPE!">
-            <div style="font-size: 40px; margin: 10px;" id="timer">15.0</div>
-            <div>SCORE: <span id="score">0</span></div>
+            <div style="font-size: 60px; margin-bottom: 10px;">💣</div>
+            <div id="prompt" style="font-size: 50px; border: 3px solid var(--text); padding: 10px 30px; border-radius: 10px;">...</div>
+            <input type="text" id="wordInput" class="input-box" style="font-size: 30px; margin-top: 20px;" autocomplete="off">
+            <div id="timer" style="font-size: 40px; margin-top: 10px;">15.0</div>
         </div>
 
         <div id="over" class="screen">
-            <h1 style="color:var(--accent); font-size: 50px;">BOOM!</h1>
-            <p>FINAL SCORE</p>
-            <div id="final-score" style="font-size: 60px;">0</div>
+            <h1>BOOM!</h1>
+            <div id="final-score" style="font-size: 50px;">0</div>
             <button class="btn" onclick="startSequence()">RETRY</button>
-            <button class="btn" onclick="location.reload()">MENU</button>
         </div>
     </div>
 
-    <div id="countdown">3</div>
-
 <script>
     let pubnub, username;
-    let words = new Set(), syllables = ["ing", "th", "er", "on", "at", "st", "re"], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
-    const sfxCorrect = new Audio('correct.mp3'), sfxBoom = new Audio('boom.mp3');
+    let words = new Set(), syllables = ["ing", "th", "er", "on", "at"], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
 
-    // 1. CHAT CONNECT (MUST BE FIRST)
-    pubnub = new PubNub({ publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472", subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2", userId: "P_"+Math.floor(Math.random()*999) });
-    pubnub.subscribe({ channels: ['word-bomber-chat'] });
-    pubnub.addListener({ message: (m) => {
-        const d = document.getElementById('chat-msgs');
-        d.innerHTML += `<div><b>${m.message.user}:</b> ${m.message.text}</div>`;
-        d.scrollTop = d.scrollHeight;
-    }});
+    // 1. SAFE CHAT INITIALIZATION
+    function initChat() {
+        if (typeof PubNub !== 'undefined') {
+            try {
+                pubnub = new PubNub({ 
+                    publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472", 
+                    subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2", 
+                    userId: "Player_" + Math.floor(Math.random() * 999) 
+                });
+                pubnub.subscribe({ channels: ['word-bomber-chat'] });
+                pubnub.addListener({ message: (m) => {
+                    const d = document.getElementById('chat-msgs');
+                    d.innerHTML += `<div><b>${m.message.user}:</b> ${m.message.text}</div>`;
+                    d.scrollTop = d.scrollHeight;
+                }});
+                console.log("Chat Connected Successfully");
+            } catch (e) { console.error("Chat init failed:", e); }
+        } else {
+            document.getElementById('chat-msgs').innerHTML = "<div><i>Chat disabled: Browser blocked tracking scripts.</i></div>";
+        }
+    }
 
     // 2. RESOURCE LOADING
-    async function init() {
+    async function initGame() {
         document.getElementById('hs-val').innerText = localStorage.getItem('wordBombHS') || 0;
-        if(localStorage.getItem('darkMode') === 'false') { document.getElementById('darkCheck').checked = false; toggleDark(); }
+        initChat(); // Try chat, but don't crash if it fails
 
         try {
-            const [sylRes, dictRes] = await Promise.all([
-                fetch('syllables.json').then(r => r.json()),
-                fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt').then(r => r.text())
-            ]);
-            syllables = sylRes;
-            dictRes.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
+            // Loading dictionary with a fallback
+            const res = await fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt');
+            const text = await res.text();
+            text.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
             document.getElementById('playBtn').innerText = "START";
-        } catch(e) { 
-            document.getElementById('playBtn').innerText = "START (OFFLINE)"; 
+        } catch (e) {
+            document.getElementById('playBtn').innerText = "START (OFFLINE)";
         }
         document.getElementById('playBtn').disabled = false;
     }
 
-    // 3. CORE LOGIC
+    // 3. UI CONTROLS
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
         document.getElementById(id).classList.add('visible');
     }
 
     function toggleDark() {
-        const isDark = document.getElementById('darkCheck').checked;
-        document.body.classList.toggle('dark-mode', isDark);
-        document.getElementById('game-logo').src = isDark ? 'logo_dark.png' : 'logo.png';
-        localStorage.setItem('darkMode', isDark);
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
     }
 
     function startSequence() {
         username = document.getElementById('userIn').value.trim() || "Guest";
         showScreen('game');
-        const cd = document.getElementById('countdown');
-        cd.style.display = 'flex';
-        let count = 3;
-        const timer = setInterval(() => {
-            cd.innerText = count > 0 ? count : "GO!";
-            if(count < 0) { clearInterval(timer); cd.style.display = 'none'; startGame(); }
-            count--;
-        }, 1000);
+        startGame();
     }
 
     function startGame() {
@@ -151,7 +136,7 @@
             if(!gameActive) return clearInterval(loop);
             timeLeft -= 0.1;
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
-            if(timeLeft <= 0) { sfxBoom.play(); endGame(); clearInterval(loop); }
+            if(timeLeft <= 0) { endGame(); clearInterval(loop); }
         }, 100);
     }
 
@@ -159,23 +144,21 @@
         currentPrompt = syllables[Math.floor(Math.random() * syllables.length)];
         document.getElementById('prompt').innerText = currentPrompt.toUpperCase();
         document.getElementById('wordInput').value = "";
-        timeLeft = 15.0;
     }
 
-    // 4. INPUT HANDLERS
     document.getElementById('wordInput').onkeydown = (e) => {
         if(e.key === 'Enter' && gameActive) {
             const val = e.target.value.toLowerCase().trim();
-            if(val.includes(currentPrompt.toLowerCase()) && (words.size === 0 || words.has(val))) {
-                sfxCorrect.play(); score += val.length;
-                document.getElementById('score').innerText = score;
+            if(val.includes(currentPrompt) && (words.size === 0 || words.has(val))) {
+                score++;
                 newRound();
+                timeLeft = 15.0;
             } else { e.target.value = ""; }
         }
     };
 
     document.getElementById('chat-in').onkeydown = (e) => {
-        if(e.key === 'Enter' && e.target.value.trim()) {
+        if(e.key === 'Enter' && e.target.value.trim() && pubnub) {
             pubnub.publish({ channel: 'word-bomber-chat', message: { user: username || "Guest", text: e.target.value } });
             e.target.value = "";
         }
@@ -188,7 +171,7 @@
         if(score > (localStorage.getItem('wordBombHS') || 0)) localStorage.setItem('wordBombHS', score);
     }
 
-    init();
+    initGame();
 </script>
 </body>
 </html>
