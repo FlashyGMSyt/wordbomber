@@ -1,44 +1,49 @@
-// Load everything safely once the window is ready
-    window.onload = () => {
-        const wordInput = document.getElementById('wordInput');
-        const chatIn = document.getElementById('chat-in');
+// Replace your existing window.onload section with this cleaner, safer version
+window.onload = () => {
+    const wordInput = document.getElementById('wordInput');
+    const chatIn = document.getElementById('chat-in');
 
-        // WORD INPUT LISTENER
-        if (wordInput) {
-            wordInput.onkeydown = (e) => {
-                if (e.key === 'Enter' && gameActive) {
-                    const val = e.target.value.toLowerCase().trim();
-                    if (val.includes(currentPrompt.toLowerCase()) && (words.size === 0 || words.has(val))) {
-                        sfxCorrect.play();
-                        score += val.length;
-                        document.getElementById('score').innerText = score;
-                        newRound();
-                        timeLeft = 15.0;
-                    } else { e.target.value = ""; }
+    // 1. GAME INPUT LOGIC
+    if (wordInput) {
+        wordInput.onkeydown = (e) => {
+            if (e.key === 'Enter' && gameActive) {
+                const val = e.target.value.toLowerCase().trim();
+                if (val.includes(currentPrompt.toLowerCase()) && (words.size === 0 || words.has(val))) {
+                    sfxCorrect.play();
+                    score += val.length;
+                    document.getElementById('score').innerText = score;
+                    newRound();
+                    timeLeft = 15.0;
+                } else { 
+                    e.target.value = ""; 
                 }
-            };
-        }
+            }
+        };
+    }
 
-        // CHAT INPUT LISTENER (THIS WAS THE MISSING LINK)
-        if (chatIn) {
-            chatIn.onkeydown = (e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                    if (pubnub) {
-                        pubnub.publish({ 
-                            channel: 'word-bomber-chat', 
-                            message: { 
-                                user: username || "Guest", 
-                                text: e.target.value 
-                            } 
-                        });
-                        e.target.value = ""; // Clear box after sending
-                    } else {
-                        // If PubNub is blocked by Edge, show a warning in the chat area
-                        const d = document.getElementById('chat-msgs');
-                        if (d) d.innerHTML += `<div style="color:red;"><i>Chat blocked by browser settings!</i></div>`;
-                    }
+    // 2. CHAT INPUT LOGIC (Edge & Chrome Fix)
+    if (chatIn) {
+        chatIn.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const msg = e.target.value.trim();
+                if (!msg) return;
+
+                if (typeof pubnub !== 'undefined' && pubnub) {
+                    pubnub.publish({ 
+                        channel: 'word-bomber-chat', 
+                        message: { user: username || "Guest", text: msg } 
+                    });
+                } else {
+                    // Show the local user their message even if offline/blocked
+                    const d = document.getElementById('chat-msgs');
+                    if (d) d.innerHTML += `<div><b style="color:gray;">(You):</b> ${msg} <i style="font-size:10px; color:red;">[Offline]</i></div>`;
                 }
-            };
-        }
-        initGame();
-    };
+                
+                e.target.value = ""; // ALWAYS clear the box so it doesn't get stuck
+                const d = document.getElementById('chat-msgs');
+                if (d) d.scrollTop = d.scrollHeight;
+            }
+        };
+    }
+    initGame();
+};
