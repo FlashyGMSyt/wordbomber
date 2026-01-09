@@ -12,49 +12,63 @@
         }
         body.dark-mode {
             --bg-color: #121212; --text-color: #ffffff; 
-            --box-bg: rgba(255, 255, 255, 0.05); --check-color: rgba(255, 255, 255, 0.03);
+            --box-bg: rgba(255, 255, 255, 0.08); --check-color: rgba(255, 255, 255, 0.03);
         }
+
+        /* FORCE CENTER ON EDGE */
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
         body { 
             font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color);
-            margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; 
-            overflow: hidden; position: relative; transition: background-color 0.3s;
+            display: flex; justify-content: center; align-items: center; position: relative; transition: background-color 0.3s;
         }
+
         body::before {
-            content: ""; position: absolute; top: -100%; left: -100%; width: 300%; height: 300%;
+            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
             background-image: 
                 linear-gradient(45deg, var(--check-color) 25%, transparent 25%), 
                 linear-gradient(-45deg, var(--check-color) 25%, transparent 25%), 
                 linear-gradient(45deg, transparent 75%, var(--check-color) 75%), 
                 linear-gradient(-45deg, transparent 75%, var(--check-color) 75%);
             background-size: 80px 80px;
-            animation: diagonalMove 15s linear infinite; z-index: -1;
+            animation: diagonalMove 20s linear infinite; z-index: -1;
         }
         @keyframes diagonalMove { from { transform: translate(0, 0); } to { transform: translate(80px, 80px); } }
 
-        .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
-        .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
+        .master-wrapper { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; max-width: 500px; height: 100%; z-index: 10;
+        }
+
+        .screen { display: none; flex-direction: column; align-items: center; width: 100%; }
         .visible { display: flex !important; }
-        .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
-        .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; transition: all 0.2s ease; backdrop-filter: blur(5px); }
+        
+        .logo { width: 90%; height: auto; margin-bottom: 20px; }
+        .btn { 
+            padding: 15px; font-size: 22px; color: var(--text-color); background: var(--box-bg); 
+            border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; 
+            margin: 8px; width: 85%; transition: 0.2s; backdrop-filter: blur(5px);
+        }
         .btn:hover:not(:disabled) { background: var(--text-color); color: var(--bg-color); }
-        .btn:disabled { opacity: 0.5; cursor: wait; }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
 
-        .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
-        #prompt { font-size: 80px; margin: 0; }
-        .menu-input { width: 80%; padding: 10px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
-        input#wordInput { width: 85%; padding: 20px; font-size: 35px; background: var(--box-bg); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 10px; text-align: center; outline: none; }
-        #timer { font-size: 60px; margin: 10px 0; }
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; color: white; font-size: 100px; }
+        .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px; border-radius: 15px; margin-bottom: 20px; width: 80%; }
+        #prompt { font-size: 60px; margin: 0; }
+        
+        .menu-input { width: 80%; padding: 12px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
+        input#wordInput { width: 85%; padding: 15px; font-size: 30px; background: var(--box-bg); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 10px; text-align: center; outline: none; }
+        
+        #timer { font-size: 50px; margin: 10px 0; }
+        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; color: white; font-size: 80px; }
 
+        /* FIXED CHAT ON EDGE */
         #chat-container {
             position: fixed; right: -300px; top: 0; width: 300px; height: 100%;
-            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px);
-            border-left: 2px solid white; transition: right 0.3s ease;
-            display: flex; flex-direction: column; z-index: 500;
+            background: rgba(0, 0, 0, 0.9); border-left: 2px solid white; 
+            transition: right 0.3s ease; display: flex; flex-direction: column; z-index: 500;
         }
         #chat-container.open { right: 0; }
         #chat-messages { flex: 1; overflow-y: auto; padding: 15px; color: white; font-family: sans-serif; font-size: 14px; text-align: left; }
-        #chat-input { padding: 15px; background: rgba(255,255,255,0.1); border: none; color: white; outline: none; width: 100%; box-sizing: border-box; }
+        #chat-input { padding: 15px; background: rgba(255,255,255,0.1); border: none; color: white; width: 100%; box-sizing: border-box; }
         .chat-toggle { position: absolute; left: -50px; top: 20px; background: white; color: black; padding: 10px; cursor: pointer; border-radius: 5px 0 0 5px; font-size: 20px; }
     </style>
 </head>
@@ -70,7 +84,7 @@
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" class="logo">
             <input type="text" id="usernameInput" class="menu-input" placeholder="USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" onclick="startSequence()" disabled>SYNCING FILES...</button>
+            <button id="startBtn" class="btn" onclick="startSequence()" disabled>PREPARING GAME...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
         </div>
@@ -84,7 +98,7 @@
         </div>
 
         <div id="game-screen" class="screen">
-            <div style="font-size: 80px;">💣</div>
+            <div style="font-size: 60px;">💣</div>
             <div class="prompt-box"><div id="prompt">...</div></div>
             <input type="text" id="wordInput" autocomplete="off" placeholder="TYPE...">
             <div id="timer">15.0</div>
@@ -93,8 +107,9 @@
 
         <div id="game-over" class="screen">
             <h1>BOOM!</h1>
-            <div id="final-score-val" style="font-size: 80px; color: var(--accent);">0</div>
+            <div id="final-score-val" style="font-size: 60px; color: var(--accent);">0</div>
             <button class="btn" onclick="startSequence()">RETRY</button>
+            <button class="btn" onclick="location.reload()">LOBBY</button>
         </div>
     </div>
     <div id="overlay">3</div>
@@ -104,11 +119,11 @@
     const sfxCorrect = new Audio('correct.mp3'); 
     const sfxBoom = new Audio('boom.mp3');
 
-    // Load Chat first
+    // Connect Chat Immediately
     pubnub = new PubNub({
         publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
         subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-        userId: "User_" + Math.floor(Math.random() * 9999)
+        userId: "Player_" + Math.floor(Math.random() * 9999)
     });
     pubnub.subscribe({ channels: ['word-bomber-chat'] });
     pubnub.addListener({
@@ -122,16 +137,21 @@
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
 
-    // FETCH LOGIC
-    async function loadResources() {
+    async function loadData() {
         document.getElementById('high-score-val').innerText = localStorage.getItem('wordBombHS') || 0;
         
+        // Sync Dark Mode UI
+        if(localStorage.getItem('darkMode') === 'false') {
+            document.getElementById('darkModeToggle').checked = false;
+            applyDarkMode();
+        }
+
         try {
-            // Load Syllables from your local JSON
+            // Fetch Syllables Locally
             const sResp = await fetch('syllables.json');
             syllables = await sResp.json();
 
-            // Load Dictionary - using a CORS proxy or direct raw link
+            // Fetch Dictionary from GitHub Raw
             const dResp = await fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt');
             const dText = await dResp.text();
             dText.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
@@ -139,85 +159,8 @@
             document.getElementById('startBtn').disabled = false;
             document.getElementById('startBtn').innerText = "START";
         } catch (e) {
-            console.error(e);
-            document.getElementById('startBtn').innerText = "RETRY LOAD";
+            // EDGE FAIL-SAFE: If fetch fails, allow start anyway with a fallback syllable
+            console.warn("Fetch failed, using fail-safe.");
+            if(syllables.length === 0) syllables = ["th", "er", "ing", "on", "at"];
             document.getElementById('startBtn').disabled = false;
-        }
-    }
-
-    function applyDarkMode() {
-        const isDark = document.getElementById('darkModeToggle').checked;
-        document.body.classList.toggle('dark-mode', isDark);
-        document.getElementById('game-logo').src = isDark ? 'logo_dark.png' : 'logo.png';
-        localStorage.setItem('darkMode', isDark);
-    }
-
-    function showScreen(id) { 
-        Object.values(screens).forEach(s => s.classList.remove('visible')); 
-        if(id === 'lobby') screens.lobby.classList.add('visible'); 
-        else screens[id].classList.add('visible'); 
-    }
-
-    function startSequence() {
-        if(words.size === 0) { loadResources(); return; }
-        username = document.getElementById('usernameInput').value.trim() || "Guest";
-        showScreen('game');
-        const ov = document.getElementById('overlay');
-        ov.style.display = "flex";
-        let c = 3;
-        const i = setInterval(() => {
-            ov.innerText = c > 0 ? c : "GO!";
-            if(c < 0) { clearInterval(i); ov.style.display = "none"; startGame(); }
-            c--;
-        }, 1000);
-    }
-
-    function startGame() {
-        gameActive = true; score = 0; timeLeft = 15.0;
-        document.getElementById('wordInput').focus(); newRound();
-        const loop = setInterval(() => {
-            if(!gameActive) return clearInterval(loop);
-            timeLeft -= 0.1;
-            document.getElementById('timer').innerText = timeLeft.toFixed(1);
-            if(timeLeft <= 0) { sfxBoom.play(); endGame(); clearInterval(loop); }
-        }, 100);
-    }
-
-    function newRound() {
-        currentPrompt = syllables[Math.floor(Math.random() * syllables.length)];
-        document.getElementById('prompt').innerText = currentPrompt;
-        document.getElementById('wordInput').value = "";
-        timeLeft = 15.0;
-    }
-
-    document.getElementById('wordInput').addEventListener('keydown', (e) => {
-        if(e.key === 'Enter' && gameActive) {
-            const val = e.target.value.toLowerCase().trim();
-            if(val.includes(currentPrompt.toLowerCase()) && words.has(val)) {
-                sfxCorrect.play();
-                score += val.length;
-                document.getElementById('score').innerText = score;
-                newRound();
-            } else e.target.value = "";
-        }
-    });
-
-    document.getElementById('chat-input').addEventListener('keydown', (e) => {
-        if(e.key === 'Enter' && e.target.value.trim()) {
-            pubnub.publish({ channel: 'word-bomber-chat', message: { user: username || "Guest", text: e.target.value } });
-            e.target.value = "";
-        }
-    });
-
-    function endGame() {
-        gameActive = false;
-        showScreen('over');
-        document.getElementById('final-score-val').innerText = score;
-        if(score > (localStorage.getItem('wordBombHS') || 0)) localStorage.setItem('wordBombHS', score);
-    }
-
-    // Initialize loading immediately
-    loadResources();
-</script>
-</body>
-</html>
+            document.getElementById('startBtn').innerText = "
