@@ -64,7 +64,8 @@
 
 <script>
     let pubnub, gameActive = false, score = 0, currentPrompt = "", currentUser = "Guest", timeLeft = 15.0;
-    let syllables = ["th", "ing", "er", "re", "ion", "st", "al", "en", "at"];
+    // We start with a fallback list, but fetch the full list from GitHub
+    let syllables = ["TH", "ING", "ER", "RE"];
     let usedWords = new Set(), dictionary = new Set();
 
     const sfxTick = new Audio('https://raw.githubusercontent.com/flashygmsyt/wordbomber/main/tick.mp3');
@@ -76,15 +77,22 @@
         document.getElementById('userIn').value = localStorage.getItem('bombUser') || "";
 
         try {
-            // UPDATED DICTIONARY SOURCE
-            const resp = await fetch('https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words.txt');
-            const text = await resp.text();
-            text.split('\n').forEach(word => {
+            // 1. Load the massive Dictionary
+            const dictResp = await fetch('https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words.txt');
+            const dictText = await dictResp.text();
+            dictText.split('\n').forEach(word => {
                 const w = word.trim().toLowerCase();
                 if(w) dictionary.add(w);
             });
-            console.log("Dictionary loaded with " + dictionary.size + " words.");
-        } catch(e) { console.warn("Dictionary blocked or offline."); }
+
+            // 2. NEW: Fetch your Syllables file from GitHub
+            const sylResp = await fetch('https://raw.githubusercontent.com/FlashyGMSyt/wordbomber/main/syllables.json');
+            const sylData = await sylResp.json();
+            if(Array.isArray(sylData)) {
+                syllables = sylData;
+                console.log("Syllables loaded: " + syllables.length);
+            }
+        } catch(e) { console.warn("Dictionary or Syllables failed to load."); }
 
         if (window.PubNub) {
             pubnub = new PubNub({
@@ -150,15 +158,12 @@
         document.getElementById('wordInput').onkeydown = (e) => {
             if (e.key === 'Enter' && gameActive) {
                 const val = e.target.value.toLowerCase().trim();
-                if (val.includes(currentPrompt) && dictionary.has(val) && !usedWords.has(val)) {
+                if (val.includes(currentPrompt.toLowerCase()) && dictionary.has(val) && !usedWords.has(val)) {
                     sfxCorrect.play();
                     usedWords.add(val);
                     score += val.length;
                     document.getElementById('score-val').innerText = "SCORE: " + score;
-                    
-                    // Timer reset fix
-                    timeLeft = 15.0; 
-                    
+                    timeLeft = 15.0; // Reset timer
                     nextRound();
                 } else {
                     e.target.style.borderColor = "red";
