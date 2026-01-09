@@ -4,59 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Word Bomber</title>
-    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js" onerror="console.warn('PubNub blocked by browser')"></script>
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js" onerror="console.warn('PubNub blocked')"></script>
     <style>
-        :root { 
-            --bg: #ffffff; --text: #000000; --accent: #ff3c3c; 
-            --box: rgba(0,0,0,0.05); --check: rgba(0,0,0,0.05); 
-        }
-        body.dark-mode { 
-            --bg: #121212; --text: #ffffff; 
-            --box: rgba(255,255,255,0.08); --check: rgba(255,255,255,0.03); 
-        }
-
+        :root { --bg: #ffffff; --text: #000000; --accent: #ff3c3c; --box: rgba(0,0,0,0.05); --check: rgba(0,0,0,0.05); }
+        body.dark-mode { --bg: #121212; --text: #ffffff; --box: rgba(255,255,255,0.08); --check: rgba(255,255,255,0.03); }
         html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background-color: var(--bg); color: var(--text); font-family: 'Arial Black', sans-serif; }
-        
-        /* RESTORED CHECKERED BACKGROUND */
         body { display: flex; justify-content: center; align-items: center; position: relative; transition: background-color 0.3s; }
-        body::before {
-            content: ""; position: absolute; inset: -50%; width: 200%; height: 200%;
-            background-image: 
-                linear-gradient(45deg, var(--check) 25%, transparent 25%), 
-                linear-gradient(-45deg, var(--check) 25%, transparent 25%), 
-                linear-gradient(45deg, transparent 75%, var(--check) 75%), 
-                linear-gradient(-45deg, transparent 75%, var(--check) 75%);
-            background-size: 80px 80px; animation: move 20s linear infinite; z-index: 1;
-        }
+        body::before { content: ""; position: absolute; inset: -50%; width: 200%; height: 200%; background-image: linear-gradient(45deg, var(--check) 25%, transparent 25%), linear-gradient(-45deg, var(--check) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--check) 75%), linear-gradient(-45deg, transparent 75%, var(--check) 75%); background-size: 80px 80px; animation: move 20s linear infinite; z-index: 1; }
         @keyframes move { from { transform: translate(0,0); } to { transform: translate(80px,80px); } }
-
         .ui-layer { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; text-align: center; }
         .screen { display: none; width: 100%; flex-direction: column; align-items: center; }
         .visible { display: flex !important; }
-
         .logo { width: 85%; height: auto; margin-bottom: 30px; }
-        .btn { 
-            padding: 18px; font-size: 22px; color: var(--text); background: var(--box); 
-            border: 2px solid var(--text); border-radius: 12px; cursor: pointer; 
-            margin: 10px; width: 90%; transition: 0.2s; backdrop-filter: blur(10px);
-            text-transform: uppercase;
-        }
+        .btn { padding: 18px; font-size: 22px; color: var(--text); background: var(--box); border: 2px solid var(--text); border-radius: 12px; cursor: pointer; margin: 10px; width: 90%; transition: 0.2s; backdrop-filter: blur(10px); text-transform: uppercase; }
         .btn:hover { background: var(--text); color: var(--bg); }
         .btn:disabled { opacity: 0.5; cursor: wait; }
-
-        .input-box { 
-            width: 85%; padding: 15px; font-size: 20px; margin-bottom: 15px; 
-            border-radius: 10px; border: 2px solid var(--text); background: var(--box); 
-            color: var(--text); text-align: center; outline: none; 
-        }
-        
-        /* CHAT UI */
+        .input-box { width: 85%; padding: 15px; font-size: 20px; margin-bottom: 15px; border-radius: 10px; border: 2px solid var(--text); background: var(--box); color: var(--text); text-align: center; outline: none; }
         #chat-panel { position: fixed; right: -320px; top: 0; width: 300px; height: 100%; background: rgba(0,0,0,0.9); border-left: 2px solid white; transition: 0.3s; z-index: 100; display: flex; flex-direction: column; }
         #chat-panel.open { right: 0; }
         #chat-msgs { flex: 1; overflow-y: auto; padding: 15px; color: white; text-align: left; font-family: sans-serif; font-size: 14px; }
         #chat-in { padding: 15px; background: #222; border: none; color: white; width: 100%; box-sizing: border-box; outline: none; }
         .chat-btn { position: absolute; left: -50px; top: 20px; background: white; padding: 10px; border-radius: 5px 0 0 5px; cursor: pointer; color: black; font-size: 20px; }
-        
         #prompt-box { font-size: 60px; border: 4px solid var(--text); padding: 20px 50px; border-radius: 20px; margin: 20px 0; background: var(--box); }
         #timer { font-size: 50px; margin-top: 10px; }
     </style>
@@ -73,13 +41,13 @@
         <div id="lobby" class="screen visible">
             <img src="logo_dark.png" id="game-logo" class="logo">
             <input type="text" id="userIn" class="input-box" placeholder="USERNAME..." maxlength="12">
-            <button id="playBtn" class="btn" onclick="startSequence()" disabled>SYNCING FILES...</button>
+            <button id="playBtn" class="btn" onclick="startSequence()" disabled>SYNCING...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
-            <p style="letter-spacing: 2px; margin-top: 20px;">HIGH SCORE: <span id="hs-val">0</span></p>
+            <p>HIGH SCORE: <span id="hs-val">0</span></p>
         </div>
 
         <div id="settings" class="screen">
-            <h1 style="font-size: 40px;">SETTINGS</h1>
+            <h1>SETTINGS</h1>
             <button class="btn" onclick="toggleDark()">TOGGLE DARK MODE</button>
             <button class="btn" onclick="showScreen('lobby')">BACK</button>
         </div>
@@ -89,12 +57,11 @@
             <div id="prompt-box"><span id="prompt">...</span></div>
             <input type="text" id="wordInput" class="input-box" style="font-size: 35px; height: 60px;" autocomplete="off" placeholder="TYPE!">
             <div id="timer">15.0</div>
-            <div style="margin-top:10px;">SCORE: <span id="score">0</span></div>
+            <div>SCORE: <span id="score">0</span></div>
         </div>
 
         <div id="over" class="screen">
             <h1 style="color:var(--accent); font-size: 60px;">BOOM!</h1>
-            <p>FINAL SCORE</p>
             <div id="final-score" style="font-size: 70px; margin-bottom: 20px;">0</div>
             <button class="btn" onclick="startSequence()">RETRY</button>
             <button class="btn" onclick="location.reload()">LOBBY</button>
@@ -102,15 +69,13 @@
     </div>
 
 <script>
-    let pubnub, username, syllables = [];
+    let pubnub, username = "Guest", syllables = [];
     let words = new Set(), score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
 
-    // SFX Objects
     const sfxTick = new Audio('tick.mp3');
     const sfxCorrect = new Audio('correct.mp3');
     const sfxBoom = new Audio('boom.mp3');
 
-    // Unlocks Audio Context for Chrome/Edge/iPad
     async function resumeAudio() {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const ctx = new AudioContext();
@@ -121,11 +86,9 @@
     }
 
     async function initGame() {
-        // High Score display fix for Edge
-        const hsDisplay = document.getElementById('hs-val');
-        if (hsDisplay) hsDisplay.innerText = localStorage.getItem('wordBombHS') || 0;
+        const hsElem = document.getElementById('hs-val');
+        if (hsElem) hsElem.innerText = localStorage.getItem('wordBombHS') || 0;
 
-        // Load PubNub with fail-safe check
         if (typeof PubNub !== 'undefined') {
             try {
                 pubnub = new PubNub({ 
@@ -141,11 +104,10 @@
                         d.scrollTop = d.scrollHeight;
                     }
                 }});
-            } catch (e) { console.warn("PubNub blocked"); }
+            } catch (e) { console.warn("PubNub Blocked"); }
         }
 
         try {
-            // LOAD SYLLABLES.JSON AND DICTIONARY
             const [sylRes, dictRes] = await Promise.all([
                 fetch('syllables.json').then(r => r.json()),
                 fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt').then(r => r.text())
@@ -154,35 +116,25 @@
             dictRes.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
             document.getElementById('playBtn').innerText = "START";
         } catch (e) {
-            syllables = ["ing", "th", "er", "re", "on"]; // Fallback syllables
+            syllables = ["ing", "th", "er"];
             document.getElementById('playBtn').innerText = "START (OFFLINE)";
         }
         document.getElementById('playBtn').disabled = false;
     }
 
-    function showScreen(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
-        const target = document.getElementById(id);
-        if (target) target.classList.add('visible');
-    }
-
-    function toggleDark() {
-        document.body.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-    }
-
     function startSequence() {
-        resumeAudio(); // Fix for sounds not playing
-        username = document.getElementById('userIn').value.trim() || "Guest";
-        showScreen('game');
+        resumeAudio();
+        // FIX: Grab the username correctly before switching screens
+        const nameInput = document.getElementById('userIn');
+        if (nameInput && nameInput.value.trim() !== "") {
+            username = nameInput.value.trim();
+        }
         
+        showScreen('game');
         let count = 3;
         const cdLoop = setInterval(() => {
-            if(count > 0) sfxTick.play();
-            if(count === 0) {
-                clearInterval(cdLoop);
-                startGame();
-            }
+            if (count > 0) sfxTick.play();
+            if (count === 0) { clearInterval(cdLoop); startGame(); }
             count--;
         }, 1000);
     }
@@ -193,16 +145,11 @@
         const input = document.getElementById('wordInput');
         if (input) { input.value = ""; input.focus(); }
         newRound();
-        
         const loop = setInterval(() => {
-            if(!gameActive) return clearInterval(loop);
+            if (!gameActive) return clearInterval(loop);
             timeLeft -= 0.1;
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
-            if(timeLeft <= 0) { 
-                sfxBoom.play();
-                endGame(); 
-                clearInterval(loop); 
-            }
+            if (timeLeft <= 0) { sfxBoom.play(); endGame(); clearInterval(loop); }
         }, 100);
     }
 
@@ -212,16 +159,15 @@
         document.getElementById('wordInput').value = "";
     }
 
-    // EDGE FIX: Wrap all input listeners in window.onload
     window.onload = () => {
         const wordInput = document.getElementById('wordInput');
         const chatIn = document.getElementById('chat-in');
 
         if (wordInput) {
             wordInput.onkeydown = (e) => {
-                if(e.key === 'Enter' && gameActive) {
+                if (e.key === 'Enter' && gameActive) {
                     const val = e.target.value.toLowerCase().trim();
-                    if(val.includes(currentPrompt.toLowerCase()) && (words.size === 0 || words.has(val))) {
+                    if (val.includes(currentPrompt.toLowerCase()) && (words.size === 0 || words.has(val))) {
                         sfxCorrect.play();
                         score += val.length;
                         document.getElementById('score').innerText = score;
@@ -237,31 +183,39 @@
                 if (e.key === 'Enter') {
                     const msg = e.target.value.trim();
                     if (!msg) return;
-
                     if (typeof pubnub !== 'undefined' && pubnub) {
                         pubnub.publish({ 
                             channel: 'word-bomber-chat', 
-                            message: { user: username || "Guest", text: msg } 
+                            message: { user: username, text: msg } 
                         });
                     } else {
                         const d = document.getElementById('chat-msgs');
-                        if (d) d.innerHTML += `<div><b style="color:gray;">(You):</b> ${msg} <i style="font-size:10px; color:red;">[Offline]</i></div>`;
+                        if (d) d.innerHTML += `<div><b style="color:gray;">(You):</b> ${msg}</div>`;
                     }
                     e.target.value = "";
-                    const d = document.getElementById('chat-msgs');
-                    if (d) d.scrollTop = d.scrollHeight;
                 }
             };
         }
         initGame();
     };
 
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+        const target = document.getElementById(id);
+        if (target) target.classList.add('visible');
+    }
+
+    function toggleDark() {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    }
+
     function endGame() {
         gameActive = false;
         document.getElementById('final-score').innerText = score;
         showScreen('over');
         let hs = localStorage.getItem('wordBombHS') || 0;
-        if(score > hs) {
+        if (score > hs) {
             localStorage.setItem('wordBombHS', score);
             const hsVal = document.getElementById('hs-val');
             if (hsVal) hsVal.innerText = score;
