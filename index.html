@@ -1,26 +1,28 @@
 <script>
-    let pubnub, username;
-    let words = new Set(), syllables = ["ing", "th", "er", "on", "at", "re", "st"], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
+    let pubnub, username, syllables = [];
+    let words = new Set(), score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
 
-    // 1. DEFINE AUDIO OBJECTS
+    // 1. Setup Audio Objects
     const sfxTick = new Audio('tick.mp3');
     const sfxCorrect = new Audio('correct.mp3');
     const sfxBoom = new Audio('boom.mp3');
 
-    // 2. AUDIO UNLOCKER (REQUIRED FOR EDGE/IPAD)
-    function unlockAudio() {
-        // Play and immediately pause all sounds to "prime" them
-        const sounds = [sfxTick, sfxCorrect, sfxBoom];
-        sounds.forEach(sound => {
-            sound.play().then(() => {
-                sound.pause();
-                sound.currentTime = 0;
-            }).catch(e => console.log("Audio waiting for interaction"));
+    // 2. Audio Unlocker for Chrome/iPad/Edge
+    async function unlockAudio() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        // "Prime" the sounds
+        [sfxTick, sfxCorrect, sfxBoom].forEach(s => {
+            s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => {});
         });
     }
 
     async function initGame() {
         document.getElementById('hs-val').innerText = localStorage.getItem('wordBombHS') || 0;
+        
+        // Try to load PubNub safely
         if (typeof PubNub !== 'undefined') {
             try {
                 pubnub = new PubNub({ 
@@ -31,34 +33,38 @@
                 pubnub.subscribe({ channels: ['word-bomber-chat'] });
                 pubnub.addListener({ message: (m) => {
                     const d = document.getElementById('chat-msgs');
-                    d.innerHTML += `<div><b>${m.message.user}:</b> ${m.message.text}</div>`;
-                    d.scrollTop = d.scrollHeight;
+                    if(d) {
+                        d.innerHTML += `<div><b>${m.message.user}:</b> ${m.message.text}</div>`;
+                        d.scrollTop = d.scrollHeight;
+                    }
                 }});
-            } catch (e) { console.warn("Chat failed to load"); }
+            } catch (e) { console.warn("Chat blocked"); }
         }
 
         try {
-            const res = await fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt');
-            const text = await res.text();
-            text.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
+            // LOAD YOUR SYLLABLES FILE AND DICTIONARY
+            const [sylRes, dictRes] = await Promise.all([
+                fetch('syllables.json').then(r => r.json()),
+                fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt').then(r => r.text())
+            ]);
+            syllables = sylRes;
+            dictRes.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
             document.getElementById('playBtn').innerText = "START";
         } catch (e) {
+            syllables = ["ing", "th", "er", "re"]; // Fallback if file fails
             document.getElementById('playBtn').innerText = "START (OFFLINE)";
         }
         document.getElementById('playBtn').disabled = false;
     }
 
     function startSequence() {
-        unlockAudio(); // THIS UNLOCKS SOUND FOR EDGE
+        unlockAudio(); // CRITICAL: Unlocks sound on click
         username = document.getElementById('userIn').value.trim() || "Guest";
         showScreen('game');
         
-        // Countdown with Ticking Sound
         let count = 3;
         const cdLoop = setInterval(() => {
-            if(count > 0) {
-                sfxTick.play(); // Play tick for 3, 2, 1
-            }
+            if(count > 0) sfxTick.play();
             if(count === 0) {
                 clearInterval(cdLoop);
                 startGame();
@@ -70,37 +76,81 @@
     function startGame() {
         gameActive = true; score = 0; timeLeft = 15.0;
         document.getElementById('score').innerText = "0";
-        document.getElementById('wordInput').focus();
+        const input = document.getElementById('wordInput');
+        if(input) {
+            input.value = "";
+            input.focus();
+        }
         newRound();
         
         const loop = setInterval(() => {
             if(!gameActive) return clearInterval(loop);
             timeLeft -= 0.1;
             document.getElementById('timer').innerText = timeLeft.toFixed(1);
-            
-            // Add a tick sound every second if you want, or just at the end
-            if (timeLeft <= 0) { 
-                sfxBoom.play(); // Play explosion
+            if(timeLeft <= 0) { 
+                sfxBoom.play();
                 endGame(); 
                 clearInterval(loop); 
             }
         }, 100);
     }
 
-    document.getElementById('wordInput').onkeydown = (e) => {
-        if(e.key === 'Enter' && gameActive) {
-            const val = e.target.value.toLowerCase().trim();
-            if(val.includes(currentPrompt) && (words.size === 0 || words.has(val))) {
-                sfxCorrect.play(); // Play success sound
-                score += val.length;
-                document.getElementById('score').innerText = score;
-                newRound();
-                timeLeft = 15.0;
-            } else { 
-                e.target.value = ""; 
-            }
+    function newRound() {
+        currentPrompt = syllables[Math.floor(Math.random() * syllables.length)];
+        document.getElementById('prompt').innerText = currentPrompt.toUpperCase();
+        document.getElementById('wordInput').value = "";
+    }
+
+    // FIX FOR EDGE: Wait for the screen to load before attaching events
+    window.onload = () => {
+        const wordInput = document.getElementById('wordInput');
+        const chatIn = document.getElementById('chat-in');
+
+        if(wordInput) {
+            wordInput.onkeydown = (e) => {
+                if(e.key === 'Enter' && gameActive) {
+                    const val = e.target.value.toLowerCase().trim();
+                    if(val.includes(currentPrompt.toLowerCase()) && (words.size === 0 || words.has(val))) {
+                        sfxCorrect.play();
+                        score += val.length;
+                        document.getElementById('score').innerText = score;
+                        newRound();
+                        timeLeft = 15.0;
+                    } else { e.target.value = ""; }
+                }
+            };
         }
+
+        if(chatIn) {
+            chatIn.onkeydown = (e) => {
+                if(e.key === 'Enter' && e.target.value.trim() && pubnub) {
+                    pubnub.publish({ channel: 'word-bomber-chat', message: { user: username || "Guest", text: e.target.value } });
+                    e.target.value = "";
+                }
+            };
+        }
+        initGame();
     };
 
-    // ... (rest of your existing showScreen and endGame functions)
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+        const target = document.getElementById(id);
+        if(target) target.classList.add('visible');
+    }
+
+    function toggleDark() {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    }
+
+    function endGame() {
+        gameActive = false;
+        document.getElementById('final-score').innerText = score;
+        showScreen('over');
+        let hs = localStorage.getItem('wordBombHS') || 0;
+        if(score > hs) {
+            localStorage.setItem('wordBombHS', score);
+            document.getElementById('hs-val').innerText = score;
+        }
+    }
 </script>
