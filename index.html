@@ -14,14 +14,11 @@
             --bg-color: #121212; --text-color: #ffffff; 
             --box-bg: rgba(255, 255, 255, 0.05); --check-color: rgba(255, 255, 255, 0.03);
         }
-
         body { 
             font-family: 'Arial Black', sans-serif; background-color: var(--bg-color); color: var(--text-color);
             margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; 
             overflow: hidden; position: relative; transition: background-color 0.3s;
         }
-
-        /* The Checkerboard Background */
         body::before {
             content: ""; position: absolute; top: -100%; left: -100%; width: 300%; height: 300%;
             background-image: 
@@ -37,25 +34,18 @@
         .master-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
         .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
         .visible { display: flex !important; }
-        
         .logo { width: 90%; max-width: 450px; height: auto; margin-bottom: 20px; }
         .btn { padding: 15px 50px; font-size: 24px; color: var(--text-color); background: var(--box-bg); border: 2px solid var(--text-color); border-radius: 12px; cursor: pointer; margin: 10px; width: 80%; transition: all 0.2s ease; backdrop-filter: blur(5px); }
-        .btn:hover:not(:disabled) { transform: scale(1.05); background: var(--text-color); color: var(--bg-color); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* The "Tap to Start" Screen for Browser Compatibility */
-        #safari-gate { position: fixed; inset: 0; background: #121212; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .btn:hover:not(:disabled) { background: var(--text-color); color: var(--bg-color); }
+        .btn:disabled { opacity: 0.5; cursor: wait; }
 
         .prompt-box { background: var(--box-bg); border: 4px solid var(--text-color); padding: 20px 40px; border-radius: 15px; margin-bottom: 20px; }
         #prompt { font-size: 80px; margin: 0; }
-        
         .menu-input { width: 80%; padding: 10px; font-size: 18px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--text-color); background: var(--box-bg); color: var(--text-color); text-align: center; }
         input#wordInput { width: 85%; padding: 20px; font-size: 35px; background: var(--box-bg); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 10px; text-align: center; outline: none; }
-        
         #timer { font-size: 60px; margin: 10px 0; }
         #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; color: white; font-size: 100px; }
 
-        /* Chat UI */
         #chat-container {
             position: fixed; right: -300px; top: 0; width: 300px; height: 100%;
             background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(15px);
@@ -70,10 +60,6 @@
 </head>
 <body class="dark-mode">
 
-    <div id="safari-gate">
-        <button class="btn" onclick="initApp()" style="background:white; color:black; width: auto;">TAP TO START</button>
-    </div>
-
     <div id="chat-container">
         <div class="chat-toggle" onclick="document.getElementById('chat-container').classList.toggle('open')">💬</div>
         <div id="chat-messages"></div>
@@ -84,7 +70,7 @@
         <div id="main-menu" class="screen visible">
             <img src="logo_dark.png" id="game-logo" class="logo">
             <input type="text" id="usernameInput" class="menu-input" placeholder="USERNAME..." maxlength="12">
-            <button id="startBtn" class="btn" onclick="startSequence()" disabled>LOADING DICTIONARY...</button>
+            <button id="startBtn" class="btn" onclick="startSequence()" disabled>SYNCING FILES...</button>
             <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
             <p>HIGH SCORE: <span id="high-score-val">0</span></p>
         </div>
@@ -92,9 +78,7 @@
         <div id="settings-screen" class="screen">
             <h1>SETTINGS</h1>
             <div class="prompt-box">
-                <label style="cursor: pointer;">
-                    <input type="checkbox" id="darkModeToggle" checked onchange="applyDarkMode()"> DARK MODE
-                </label>
+                <label style="cursor:pointer;"><input type="checkbox" id="darkModeToggle" checked onchange="applyDarkMode()"> DARK MODE</label>
             </div>
             <button class="btn" onclick="showScreen('lobby')">BACK</button>
         </div>
@@ -113,65 +97,51 @@
             <button class="btn" onclick="startSequence()">RETRY</button>
         </div>
     </div>
-    
     <div id="overlay">3</div>
 
 <script>
     let pubnub, username;
-    const sfxTick = new Audio('tick.mp3'); 
     const sfxCorrect = new Audio('correct.mp3'); 
     const sfxBoom = new Audio('boom.mp3');
 
-    // Start App Function - Fixes Blank Screen and Loading
-    function initApp() {
-        document.getElementById('safari-gate').style.display = 'none';
-        
-        // Initialize PubNub
-        pubnub = new PubNub({
-            publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
-            subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
-            userId: "User_" + Math.floor(Math.random() * 9999)
-        });
-        pubnub.subscribe({ channels: ['word-bomber-chat'] });
-        pubnub.addListener({
-            message: (e) => {
-                const msgDiv = document.getElementById('chat-messages');
-                msgDiv.innerHTML += `<div><b>${e.message.user}:</b> ${e.message.text}</div>`;
-                msgDiv.scrollTop = msgDiv.scrollHeight;
-            }
-        });
-
-        // Load Dictionary Assets
-        loadData();
-    }
+    // Load Chat first
+    pubnub = new PubNub({
+        publishKey: "pub-c-e3f9234f-55b2-47f7-bfab-a6cf1a375472",
+        subscribeKey: "sub-c-02383c88-1dca-4119-b262-196e9bedcea2",
+        userId: "User_" + Math.floor(Math.random() * 9999)
+    });
+    pubnub.subscribe({ channels: ['word-bomber-chat'] });
+    pubnub.addListener({
+        message: (e) => {
+            const msgDiv = document.getElementById('chat-messages');
+            msgDiv.innerHTML += `<div><b>${e.message.user}:</b> ${e.message.text}</div>`;
+            msgDiv.scrollTop = msgDiv.scrollHeight;
+        }
+    });
 
     const screens = { lobby: document.getElementById('main-menu'), settings: document.getElementById('settings-screen'), game: document.getElementById('game-screen'), over: document.getElementById('game-over') };
     let words = new Set(), syllables = [], score = 0, currentPrompt = "", timeLeft = 15.0, gameActive = false;
 
-    async function loadData() {
+    // FETCH LOGIC
+    async function loadResources() {
         document.getElementById('high-score-val').innerText = localStorage.getItem('wordBombHS') || 0;
         
-        // Persist Dark Mode setting
-        if(localStorage.getItem('darkMode') === 'false') {
-            document.getElementById('darkModeToggle').checked = false;
-            applyDarkMode();
-        }
-
         try {
-            const [dictRes, sylRes] = await Promise.all([
-                fetch('https://raw.githubusercontent.com/ArashPartow/bloom/refs/heads/master/word-list-extra-large.txt'),
-                fetch('syllables.json')
-            ]);
-            
-            const dictText = await dictRes.text();
-            syllables = await sylRes.json();
-            
-            dictText.split(/\n/).forEach(w => words.add(w.trim().toLowerCase()));
-            
+            // Load Syllables from your local JSON
+            const sResp = await fetch('syllables.json');
+            syllables = await sResp.json();
+
+            // Load Dictionary - using a CORS proxy or direct raw link
+            const dResp = await fetch('https://raw.githubusercontent.com/ArashPartow/bloom/master/word-list-extra-large.txt');
+            const dText = await dResp.text();
+            dText.split('\n').forEach(w => words.add(w.trim().toLowerCase()));
+
             document.getElementById('startBtn').disabled = false;
             document.getElementById('startBtn').innerText = "START";
         } catch (e) {
-            document.getElementById('startBtn').innerText = "LOAD ERROR - RELOAD";
+            console.error(e);
+            document.getElementById('startBtn').innerText = "RETRY LOAD";
+            document.getElementById('startBtn').disabled = false;
         }
     }
 
@@ -189,6 +159,7 @@
     }
 
     function startSequence() {
+        if(words.size === 0) { loadResources(); return; }
         username = document.getElementById('usernameInput').value.trim() || "Guest";
         showScreen('game');
         const ov = document.getElementById('overlay');
@@ -203,8 +174,7 @@
 
     function startGame() {
         gameActive = true; score = 0; timeLeft = 15.0;
-        document.getElementById('wordInput').focus(); 
-        newRound();
+        document.getElementById('wordInput').focus(); newRound();
         const loop = setInterval(() => {
             if(!gameActive) return clearInterval(loop);
             timeLeft -= 0.1;
@@ -228,9 +198,7 @@
                 score += val.length;
                 document.getElementById('score').innerText = score;
                 newRound();
-            } else {
-                e.target.value = "";
-            }
+            } else e.target.value = "";
         }
     });
 
@@ -247,6 +215,9 @@
         document.getElementById('final-score-val').innerText = score;
         if(score > (localStorage.getItem('wordBombHS') || 0)) localStorage.setItem('wordBombHS', score);
     }
+
+    // Initialize loading immediately
+    loadResources();
 </script>
 </body>
 </html>
