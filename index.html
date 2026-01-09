@@ -76,9 +76,14 @@
         document.getElementById('userIn').value = localStorage.getItem('bombUser') || "";
 
         try {
-            const resp = await fetch('https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt');
+            // UPDATED DICTIONARY SOURCE
+            const resp = await fetch('https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words.txt');
             const text = await resp.text();
-            text.split('\n').forEach(word => dictionary.add(word.trim().toLowerCase()));
+            text.split('\n').forEach(word => {
+                const w = word.trim().toLowerCase();
+                if(w) dictionary.add(w);
+            });
+            console.log("Dictionary loaded with " + dictionary.size + " words.");
         } catch(e) { console.warn("Dictionary blocked or offline."); }
 
         if (window.PubNub) {
@@ -151,7 +156,7 @@
                     score += val.length;
                     document.getElementById('score-val').innerText = "SCORE: " + score;
                     
-                    // FIXED PART: Timer now restarts on correct word
+                    // Timer reset fix
                     timeLeft = 15.0; 
                     
                     nextRound();
